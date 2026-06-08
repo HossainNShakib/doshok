@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { AdminPageHeader } from "@/components/admin/admin-ui"
+import { ImageUploader } from "@/components/admin/image-uploader"
 
 type VariantInput = {
   size: string
@@ -27,6 +28,8 @@ export default function NewProductPage() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [variants, setVariants] = useState<VariantInput[]>([])
   const [pageType, setPageType] = useState("NORMAL")
+  const [productImages, setProductImages] = useState<string[]>([])
+  const [landingHeroImage, setLandingHeroImage] = useState("")
 
   useEffect(() => {
     fetch("/api/categories")
@@ -54,7 +57,6 @@ export default function NewProductPage() {
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const imagesStr = (formData.get("images") as string) || ""
 
     const body: Record<string, unknown> = {
       name: formData.get("name"),
@@ -62,7 +64,7 @@ export default function NewProductPage() {
       description: formData.get("description") || undefined,
       price: Number(formData.get("price")),
       oldPrice: formData.get("oldPrice") ? Number(formData.get("oldPrice")) : undefined,
-      images: imagesStr.split("\n").map((s) => s.trim()).filter(Boolean),
+      images: productImages,
       categoryId: formData.get("categoryId"),
       featured: formData.get("featured") === "on",
       published: formData.get("published") === "on",
@@ -75,7 +77,7 @@ export default function NewProductPage() {
       body.landingHeadline = formData.get("landingHeadline") || undefined
       body.landingSubheadline = formData.get("landingSubheadline") || undefined
       body.landingCopy = formData.get("landingCopy") || undefined
-      body.landingHeroImage = formData.get("landingHeroImage") || undefined
+      body.landingHeroImage = landingHeroImage || undefined
     }
 
     const res = await fetch("/api/products", {
@@ -162,8 +164,13 @@ export default function NewProductPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="images">Image URLs <span className="text-muted-foreground">(one per line)</span></Label>
-                  <Textarea id="images" name="images" rows={3} placeholder="Paste Cloudinary image URL" />
+                  <ImageUploader
+                    images={productImages}
+                    onChange={setProductImages}
+                    label="Product images"
+                    helperText="Upload clear product photos. The first image will be used as the main product image."
+                    folder="products"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="defaultCouponCode">Default coupon code <span className="text-muted-foreground">(optional)</span></Label>
@@ -268,8 +275,14 @@ export default function NewProductPage() {
                     <Textarea id="landingCopy" name="landingCopy" rows={4} placeholder="Write the campaign copy customers will see on the landing page." />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="landingHeroImage">Landing hero image URL</Label>
-                    <Input id="landingHeroImage" name="landingHeroImage" placeholder="Paste Cloudinary image URL" />
+                    <ImageUploader
+                      images={landingHeroImage ? [landingHeroImage] : []}
+                      onChange={(imgs) => setLandingHeroImage(imgs[0] || "")}
+                      single
+                      label="Landing hero image"
+                      helperText="Upload a hero image for the landing page."
+                      folder="landing"
+                    />
                   </div>
                 </CardContent>
               </Card>

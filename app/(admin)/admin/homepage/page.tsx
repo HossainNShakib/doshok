@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { X } from "lucide-react"
 import { AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui"
+import { ImageUploader } from "@/components/admin/image-uploader"
 
 export default function AdminHomepagePage() {
   const [heroTitle, setHeroTitle] = useState("")
@@ -103,12 +103,13 @@ export default function AdminHomepagePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="heroImage">Hero image URL</Label>
-              <Input
-                id="heroImage"
-                value={heroImage}
-                onChange={(e) => setHeroImage(e.target.value)}
-                placeholder="Paste Cloudinary image URL"
+              <ImageUploader
+                images={heroImage ? [heroImage] : []}
+                onChange={(imgs) => setHeroImage(imgs[0] || "")}
+                single
+                label="Homepage hero image"
+                helperText="Upload the hero banner image for the homepage."
+                folder="homepage"
               />
             </div>
         </AdminSectionCard>

@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { AdminPageHeader } from "@/components/admin/admin-ui"
+import { ImageUploader } from "@/components/admin/image-uploader"
 
 type VariantInput = {
   size: string
@@ -30,20 +31,20 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [variants, setVariants] = useState<VariantInput[]>([])
   const [pageType, setPageType] = useState("NORMAL")
+  const [productImages, setProductImages] = useState<string[]>([])
+  const [landingHeroImage, setLandingHeroImage] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
     description: "",
     price: "",
     oldPrice: "",
-    images: "",
     categoryId: "",
     featured: false,
     published: true,
     landingHeadline: "",
     landingSubheadline: "",
     landingCopy: "",
-    landingHeroImage: "",
     defaultCouponCode: "",
   })
 
@@ -61,17 +62,17 @@ export default function EditProductPage() {
           description: p.description ?? "",
           price: p.price?.toString() ?? "",
           oldPrice: p.oldPrice?.toString() ?? "",
-          images: (p.images ?? []).join("\n"),
           categoryId: p.categoryId ?? "",
           featured: p.featured ?? false,
           published: p.published ?? true,
           landingHeadline: p.landingHeadline ?? "",
           landingSubheadline: p.landingSubheadline ?? "",
           landingCopy: p.landingCopy ?? "",
-          landingHeroImage: p.landingHeroImage ?? "",
           defaultCouponCode: p.defaultCouponCode ?? "",
         })
         setPageType(p.pageType ?? "NORMAL")
+        setProductImages(p.images ?? [])
+        setLandingHeroImage(p.landingHeroImage ?? "")
         setVariants(
           (p.variants ?? []).map((v: VariantInput & { id: string }) => ({
             size: v.size,
@@ -110,7 +111,7 @@ export default function EditProductPage() {
       description: formData.description || undefined,
       price: Number(formData.price),
       oldPrice: formData.oldPrice ? Number(formData.oldPrice) : undefined,
-      images: formData.images.split("\n").map((s) => s.trim()).filter(Boolean),
+      images: productImages,
       categoryId: formData.categoryId,
       featured: formData.featured,
       published: formData.published,
@@ -123,7 +124,7 @@ export default function EditProductPage() {
       body.landingHeadline = formData.landingHeadline || undefined
       body.landingSubheadline = formData.landingSubheadline || undefined
       body.landingCopy = formData.landingCopy || undefined
-      body.landingHeroImage = formData.landingHeroImage || undefined
+      body.landingHeroImage = landingHeroImage || undefined
     }
 
     const res = await fetch(`/api/products/${productId}`, {
@@ -217,8 +218,13 @@ export default function EditProductPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="images">Image URLs <span className="text-muted-foreground">(one per line)</span></Label>
-                  <Textarea id="images" rows={3} value={formData.images} onChange={(e) => setFormData({ ...formData, images: e.target.value })} placeholder="Paste Cloudinary image URL" />
+                  <ImageUploader
+                    images={productImages}
+                    onChange={setProductImages}
+                    label="Product images"
+                    helperText="Upload clear product photos. The first image will be used as the main product image."
+                    folder="products"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="defaultCouponCode">Default coupon code <span className="text-muted-foreground">(optional)</span></Label>
@@ -295,8 +301,14 @@ export default function EditProductPage() {
                     <Textarea id="landingCopy" rows={4} value={formData.landingCopy} onChange={(e) => setFormData({ ...formData, landingCopy: e.target.value })} placeholder="Write the campaign copy customers will see on the landing page." />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="landingHeroImage">Landing hero image URL</Label>
-                    <Input id="landingHeroImage" value={formData.landingHeroImage} onChange={(e) => setFormData({ ...formData, landingHeroImage: e.target.value })} placeholder="Paste Cloudinary image URL" />
+                    <ImageUploader
+                      images={landingHeroImage ? [landingHeroImage] : []}
+                      onChange={(imgs) => setLandingHeroImage(imgs[0] || "")}
+                      single
+                      label="Landing hero image"
+                      helperText="Upload a hero image for the landing page."
+                      folder="landing"
+                    />
                   </div>
                 </CardContent>
               </Card>
