@@ -101,7 +101,7 @@ export default function AdminCategoriesPage() {
             <Label htmlFor="catSlug">Slug</Label>
             <Input id="catSlug" value={slug} onChange={(e) => setSlug(e.target.value)} required />
           </div>
-          <Button type="submit" disabled={loading} className="rounded-full">
+          <Button type="submit" disabled={loading} className="h-10 rounded-full px-5">
             Add Category
           </Button>
         </form>

@@ -24,7 +24,7 @@ export function AdminPageHeader({
             {eyebrow}
           </p>
         )}
-        <h1 className="text-3xl font-black tracking-[-0.045em] text-neutral-950 md:text-5xl">
+        <h1 className="text-3xl font-black tracking-[-0.045em] text-neutral-950 md:text-4xl">
           {title}
         </h1>
         {description && (

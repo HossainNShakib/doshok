@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UpdateOrderStatus } from "@/components/admin/update-order-status"
 import { AdminPageHeader, AdminSectionCard, AdminStatusBadge, AdminTableShell } from "@/components/admin/admin-ui"
 
@@ -30,89 +31,105 @@ export default async function AdminOrderDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AdminSectionCard title="Customer Details" description="Customer contact and delivery address.">
-          <div className="space-y-2 text-sm">
-            <div><span className="font-medium">Name:</span> {order.customerName}</div>
-            <div><span className="font-medium">Email:</span> {order.customerEmail}</div>
-            <div><span className="font-medium">Phone:</span> {order.customerPhone}</div>
+          <div className="space-y-3 text-sm">
+            {[
+              ["Name", order.customerName],
+              ["Email", order.customerEmail],
+              ["Phone", order.customerPhone],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="w-20 text-xs font-bold uppercase tracking-[0.12em] text-neutral-400">{label}</span>
+                <span className="font-medium">{value}</span>
+              </div>
+            ))}
             {order.address && (
               <>
                 <Separator />
-                <div><span className="font-medium">Division:</span> {order.address.division}</div>
-                <div><span className="font-medium">District:</span> {order.address.district}</div>
-                <div><span className="font-medium">Thana:</span> {order.address.thana}</div>
-                <div><span className="font-medium">Address:</span> {order.address.fullAddress}</div>
+                {[
+                  ["Division", order.address.division],
+                  ["District", order.address.district],
+                  ["Thana", order.address.thana],
+                  ["Address", order.address.fullAddress],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-start gap-3">
+                    <span className="w-20 shrink-0 text-xs font-bold uppercase tracking-[0.12em] text-neutral-400">{label}</span>
+                    <span className="font-medium">{value}</span>
+                  </div>
+                ))}
               </>
             )}
           </div>
         </AdminSectionCard>
 
         <AdminSectionCard title="Order Status" description="Update fulfillment and payment status safely.">
-            <div className="flex gap-2">
-              <AdminStatusBadge status={`Payment: ${order.paymentStatus}`} />
-              <AdminStatusBadge status={`Status: ${order.orderStatus}`} />
+          <div className="flex flex-wrap gap-2 mb-4">
+            <AdminStatusBadge status={order.paymentStatus} type="payment" />
+            <AdminStatusBadge status={order.orderStatus} type="order" />
+          </div>
+          {order.bkashTrxId && (
+            <div className="mb-3 text-sm">
+              <span className="text-xs font-bold uppercase tracking-[0.12em] text-neutral-400">bKash TrxID:</span>{" "}
+              <span className="font-mono text-xs">{order.bkashTrxId}</span>
             </div>
-            {order.bkashTrxId && (
-              <div className="text-sm">
-                <span className="font-medium">bKash TrxID:</span> {order.bkashTrxId}
-              </div>
-            )}
-            <UpdateOrderStatus orderId={order.id} currentOrderStatus={order.orderStatus} currentPaymentStatus={order.paymentStatus} />
+          )}
+          <UpdateOrderStatus orderId={order.id} currentOrderStatus={order.orderStatus} currentPaymentStatus={order.paymentStatus} />
         </AdminSectionCard>
       </div>
 
       <AdminSectionCard title="Items" description="Products, variants, quantities, and order totals.">
-          <AdminTableShell>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2 font-medium">Product</th>
-                <th className="text-left py-2 font-medium">Variant</th>
-                <th className="text-right py-2 font-medium">Qty</th>
-                <th className="text-right py-2 font-medium">Price</th>
-                <th className="text-right py-2 font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
+        <AdminTableShell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Variant</TableHead>
+                <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {order.items.map((item) => (
-                <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-2">{item.name}</td>
-                  <td className="py-2 text-muted-foreground">
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {[item.size, item.color].filter(Boolean).join(" / ") || "-"}
-                  </td>
-                  <td className="py-2 text-right">{item.quantity}</td>
-                  <td className="py-2 text-right">৳{item.price.toLocaleString()}</td>
-                  <td className="py-2 text-right">৳{(item.price * item.quantity).toLocaleString()}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell className="text-right">৳{item.price.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-medium">৳{(item.price * item.quantity).toLocaleString()}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t font-medium">
-                <td colSpan={4} className="py-2 text-right">Subtotal</td>
-                <td className="py-2 text-right">৳{order.subtotal.toLocaleString()}</td>
-              </tr>
-              <tr>
-                <td colSpan={4} className="py-1 text-right text-muted-foreground">Delivery</td>
-                <td className="py-1 text-right">৳{order.deliveryFee.toLocaleString()}</td>
-              </tr>
-              {order.discount > 0 && (
-                <tr>
-                  <td colSpan={4} className="py-1 text-right text-muted-foreground">Discount</td>
-                  <td className="py-1 text-right">-৳{order.discount.toLocaleString()}</td>
-                </tr>
-              )}
-              <tr className="border-t font-bold">
-                <td colSpan={4} className="py-2 text-right">Total</td>
-                <td className="py-2 text-right">৳{order.total.toLocaleString()}</td>
-              </tr>
-              {order.paidAmount > 0 && (
-                <tr>
-                  <td colSpan={4} className="py-1 text-right text-muted-foreground">Paid</td>
-                  <td className="py-1 text-right">৳{order.paidAmount.toLocaleString()}</td>
-                </tr>
-              )}
-            </tfoot>
-          </table>
-          </AdminTableShell>
+            </TableBody>
+          </Table>
+          <div className="border-t border-black/5 px-4 py-4 space-y-1.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-neutral-500">Subtotal</span>
+              <span className="font-medium">৳{order.subtotal.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-neutral-500">Delivery</span>
+              <span className="font-medium">৳{order.deliveryFee.toLocaleString()}</span>
+            </div>
+            {order.discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500">Discount</span>
+                <span className="font-medium text-green-600">-৳{order.discount.toLocaleString()}</span>
+              </div>
+            )}
+            <Separator />
+            <div className="flex justify-between text-base font-black">
+              <span>Total</span>
+              <span>৳{order.total.toLocaleString()}</span>
+            </div>
+            {order.paidAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500">Paid</span>
+                <span className="font-medium">৳{order.paidAmount.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+        </AdminTableShell>
       </AdminSectionCard>
     </div>
   )

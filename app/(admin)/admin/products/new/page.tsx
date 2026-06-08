@@ -113,25 +113,25 @@ export default function NewProductPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name *</Label>
-                    <Input id="name" name="name" required />
+                    <Input id="name" name="name" placeholder="e.g. Classic T-Shirt" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="slug">Slug *</Label>
-                    <Input id="slug" name="slug" required />
+                    <Input id="slug" name="slug" placeholder="e.g. classic-t-shirt" required />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" rows={4} />
+                  <Textarea id="description" name="description" rows={4} placeholder="Describe your product in detail..." />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="price">Price (BDT) *</Label>
-                    <Input id="price" name="price" type="number" required />
+                    <Input id="price" name="price" type="number" placeholder="e.g. 1500" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="oldPrice">Compare Price (BDT)</Label>
-                    <Input id="oldPrice" name="oldPrice" type="number" />
+                    <Input id="oldPrice" name="oldPrice" type="number" placeholder="e.g. 2000" />
                   </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -277,7 +277,7 @@ export default function NewProductPage() {
           )}
         </Tabs>
 
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
           {loading ? "Creating..." : "Create Product"}
         </Button>
       </form>

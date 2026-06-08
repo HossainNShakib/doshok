@@ -89,6 +89,7 @@ export default function AdminHomepagePage() {
                 id="heroTitle"
                 value={heroTitle}
                 onChange={(e) => setHeroTitle(e.target.value)}
+                placeholder="e.g. Summer Collection 2024"
               />
             </div>
             <div className="space-y-2">
@@ -97,6 +98,7 @@ export default function AdminHomepagePage() {
                 id="heroSubtitle"
                 value={heroSubtitle}
                 onChange={(e) => setHeroSubtitle(e.target.value)}
+                placeholder="e.g. Premium quality at the best price"
               />
             </div>
             <div className="space-y-2">
@@ -148,9 +150,11 @@ export default function AdminHomepagePage() {
             )}
         </AdminSectionCard>
 
-        <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
-          {loading ? "Saving..." : "Save Changes"}
-        </Button>
+        <div className="flex gap-3 pt-2">
+          <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
+            {loading ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
       </form>
     </div>
   )

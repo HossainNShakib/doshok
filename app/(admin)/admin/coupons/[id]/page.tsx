@@ -98,6 +98,7 @@ export default function EditCouponPage() {
                 id="code"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="SAVE20"
                 required
               />
             </div>
@@ -110,6 +111,7 @@ export default function EditCouponPage() {
                   type="number"
                   value={discount}
                   onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="20"
                   required
                 />
               </div>
@@ -135,6 +137,7 @@ export default function EditCouponPage() {
                   type="number"
                   value={minOrder}
                   onChange={(e) => setMinOrder(e.target.value)}
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2">
@@ -144,6 +147,7 @@ export default function EditCouponPage() {
                   type="number"
                   value={maxUses}
                   onChange={(e) => setMaxUses(e.target.value)}
+                  placeholder="e.g. 100"
                 />
               </div>
             </div>
@@ -166,10 +170,10 @@ export default function EditCouponPage() {
         </Card>
 
         <div className="flex gap-3">
-          <Button type="submit" disabled={loading} className="rounded-full">
+          <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
             {loading ? "Saving..." : "Save Changes"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} className="h-11 rounded-full px-6">
             Cancel
           </Button>
         </div>

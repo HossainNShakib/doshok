@@ -95,21 +95,23 @@ export default function NewCouponPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="minOrder">Min Order (৳)</Label>
-                <Input
-                  id="minOrder"
-                  type="number"
-                  value={minOrder}
-                  onChange={(e) => setMinOrder(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxUses">Max Uses <span className="text-muted-foreground">(optional)</span></Label>
-                <Input
-                  id="maxUses"
-                  type="number"
-                  value={maxUses}
-                  onChange={(e) => setMaxUses(e.target.value)}
-                />
+                  <Input
+                    id="minOrder"
+                    type="number"
+                    value={minOrder}
+                    onChange={(e) => setMinOrder(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxUses">Max Uses <span className="text-muted-foreground">(optional)</span></Label>
+                  <Input
+                    id="maxUses"
+                    type="number"
+                    value={maxUses}
+                    onChange={(e) => setMaxUses(e.target.value)}
+                    placeholder="e.g. 100"
+                  />
               </div>
             </div>
 
@@ -131,10 +133,10 @@ export default function NewCouponPage() {
         </Card>
 
         <div className="flex gap-3">
-          <Button type="submit" disabled={loading} className="rounded-full">
+          <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
             {loading ? "Creating..." : "Create Coupon"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} className="h-11 rounded-full px-6">
             Cancel
           </Button>
         </div>

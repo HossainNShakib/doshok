@@ -168,25 +168,25 @@ export default function EditProductPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name *</Label>
-                    <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+                    <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Classic T-Shirt" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="slug">Slug *</Label>
-                    <Input id="slug" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} required />
+                    <Input id="slug" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} placeholder="e.g. classic-t-shirt" required />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                  <Textarea id="description" rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe your product in detail..." />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="price">Price (BDT) *</Label>
-                    <Input id="price" type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required />
+                    <Input id="price" type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="e.g. 1500" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="oldPrice">Compare Price (BDT)</Label>
-                    <Input id="oldPrice" type="number" value={formData.oldPrice} onChange={(e) => setFormData({ ...formData, oldPrice: e.target.value })} />
+                    <Input id="oldPrice" type="number" value={formData.oldPrice} onChange={(e) => setFormData({ ...formData, oldPrice: e.target.value })} placeholder="e.g. 2000" />
                   </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -284,19 +284,19 @@ export default function EditProductPage() {
                 <CardContent className="pt-6 space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="landingHeadline">Landing Headline</Label>
-                    <Input id="landingHeadline" value={formData.landingHeadline} onChange={(e) => setFormData({ ...formData, landingHeadline: e.target.value })} />
+                    <Input id="landingHeadline" value={formData.landingHeadline} onChange={(e) => setFormData({ ...formData, landingHeadline: e.target.value })} placeholder="Limited Edition Drop" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="landingSubheadline">Landing Subheadline</Label>
-                    <Input id="landingSubheadline" value={formData.landingSubheadline} onChange={(e) => setFormData({ ...formData, landingSubheadline: e.target.value })} />
+                    <Input id="landingSubheadline" value={formData.landingSubheadline} onChange={(e) => setFormData({ ...formData, landingSubheadline: e.target.value })} placeholder="Premium quality at the best price" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="landingCopy">Landing Copy</Label>
-                    <Textarea id="landingCopy" rows={4} value={formData.landingCopy} onChange={(e) => setFormData({ ...formData, landingCopy: e.target.value })} />
+                    <Textarea id="landingCopy" rows={4} value={formData.landingCopy} onChange={(e) => setFormData({ ...formData, landingCopy: e.target.value })} placeholder="Detailed landing page copy..." />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="landingHeroImage">Landing Hero Image URL</Label>
-                    <Input id="landingHeroImage" value={formData.landingHeroImage} onChange={(e) => setFormData({ ...formData, landingHeroImage: e.target.value })} />
+                    <Input id="landingHeroImage" value={formData.landingHeroImage} onChange={(e) => setFormData({ ...formData, landingHeroImage: e.target.value })} placeholder="https://res.cloudinary.com/..." />
                   </div>
                 </CardContent>
               </Card>
@@ -305,10 +305,10 @@ export default function EditProductPage() {
         </Tabs>
 
         <div className="flex gap-4">
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
             {loading ? "Saving..." : "Save Changes"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.push("/admin/products")}>
+          <Button type="button" variant="outline" onClick={() => router.push("/admin/products")} className="h-11 rounded-full px-6">
             Cancel
           </Button>
         </div>

@@ -82,7 +82,7 @@ export default function SiteSettingsPage() {
       <AdminSectionCard title="Brand Info" description="Public brand label and short footer copy.">
           <div className="space-y-2">
             <Label htmlFor="brandName">Brand Name</Label>
-            <Input id="brandName" value={settings.brandName} onChange={(e) => update("brandName", e.target.value)} />
+            <Input id="brandName" value={settings.brandName} onChange={(e) => update("brandName", e.target.value)} placeholder="Doshok" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="footerText">Footer Short Description</Label>
@@ -93,11 +93,11 @@ export default function SiteSettingsPage() {
       <AdminSectionCard title="Contact Information" description="Used by public support pages and footer contact blocks.">
           <div className="space-y-2">
             <Label htmlFor="supportEmail">Support Email</Label>
-            <Input id="supportEmail" type="email" value={settings.supportEmail} onChange={(e) => update("supportEmail", e.target.value)} />
+            <Input id="supportEmail" type="email" value={settings.supportEmail} onChange={(e) => update("supportEmail", e.target.value)} placeholder="support@doshok.com" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
-            <Input id="phone" value={settings.phone} onChange={(e) => update("phone", e.target.value)} />
+            <Input id="phone" value={settings.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+8801XXXXXXXXX" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="whatsapp">WhatsApp Number (optional)</Label>
@@ -105,7 +105,7 @@ export default function SiteSettingsPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="address">Service Area / Address</Label>
-            <Textarea id="address" value={settings.address} onChange={(e) => update("address", e.target.value)} rows={2} />
+            <Textarea id="address" value={settings.address} onChange={(e) => update("address", e.target.value)} rows={2} placeholder="e.g. Dhaka, Bangladesh" />
           </div>
       </AdminSectionCard>
 
@@ -120,7 +120,7 @@ export default function SiteSettingsPage() {
           </div>
       </AdminSectionCard>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-2">
         <Button onClick={handleSave} disabled={saving} className="h-11 rounded-full px-8">
           {saving ? "Saving..." : "Save Settings"}
         </Button>

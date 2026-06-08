@@ -115,7 +115,7 @@ export default function AdminDeliveryZonesPage() {
                 required
               />
             </div>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="h-10 rounded-full px-5">
               <Plus className="h-4 w-4 mr-1" /> Add Zone
             </Button>
           </form>
