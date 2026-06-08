@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Home, Settings, Wallet, MapPin, SlidersHorizontal } from "lucide-react"
+import { Home, Settings, Wallet, MapPin } from "lucide-react"
 import { AdminHubCard, AdminPageHeader } from "@/components/admin/admin-ui"
 
 const sections = [

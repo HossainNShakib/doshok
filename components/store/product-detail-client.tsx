@@ -10,7 +10,6 @@ import { toast } from "sonner"
 import { addToCart } from "@/lib/cart"
 import { cn } from "@/lib/utils"
 import {
-  ArrowRight,
   Check,
   ChevronRight,
   Heart,

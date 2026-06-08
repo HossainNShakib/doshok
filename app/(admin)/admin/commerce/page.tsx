@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, FolderTree, FileText, TicketPercent, Store } from "lucide-react"
+import { Package, FolderTree, FileText, TicketPercent } from "lucide-react"
 import { AdminHubCard, AdminPageHeader } from "@/components/admin/admin-ui"
 
 const sections = [

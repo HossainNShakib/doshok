@@ -4,7 +4,6 @@ import { success, error } from "@/lib/api-response"
 import { auth } from "@/lib/auth"
 import { courierMethodUpdateSchema, courierCredentialsMap } from "@/lib/validations"
 import { encrypt, decrypt } from "@/lib/encryption"
-import { ALLOWED_COURIERS } from "@/types"
 
 export const dynamic = "force-dynamic"
 

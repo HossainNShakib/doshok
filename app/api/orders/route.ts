@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import { success, error } from "@/lib/api-response"
 
 export async function GET(request: NextRequest) {
@@ -14,6 +15,9 @@ export async function GET(request: NextRequest) {
     })
     return success(orders)
   }
+
+  const session = await auth()
+  if (!session?.user) return error("Unauthorized", 401)
 
   const orders = await prisma.order.findMany({
     include: { items: true, address: true },

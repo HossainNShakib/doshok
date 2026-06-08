@@ -19,8 +19,43 @@ export async function POST(request: NextRequest) {
     }
 
     const deliveryFee = await getDeliveryFee(deliveryZone)
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const orderNumber = await generateOrderNumber()
+
+    const productIds = [...new Set(items.map((i) => i.productId))]
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, name: true, price: true },
+    })
+    const productMap = new Map(products.map((p) => [p.id, p]))
+    const productPriceMap = new Map(products.map((p) => [p.id, p.price]))
+
+    const variantIds = items.map((i) => i.variantId).filter(Boolean) as string[]
+    const variants = variantIds.length > 0
+      ? await prisma.productVariant.findMany({
+          where: { id: { in: variantIds } },
+        })
+      : []
+    const variantMap = new Map(variants.map((v) => [v.id, v]))
+
+    const validatedItems = items.map((item) => {
+      const dbPrice = productPriceMap.get(item.productId)
+      if (!dbPrice) throw new Error(`Product not found: ${item.productId}`)
+      return { ...item, price: dbPrice }
+    })
+
+    for (const item of validatedItems) {
+      if (item.variantId) {
+        const variant = variantMap.get(item.variantId)
+        if (!variant) return error(`Variant not found for item in product ${productMap.get(item.productId)?.name || item.productId}`)
+        if (variant.stock < item.quantity) {
+          return error(
+            `Insufficient stock for "${productMap.get(item.productId)?.name || "Product"}". Available: ${variant.stock}, requested: ${item.quantity}`
+          )
+        }
+      }
+    }
+
+    const subtotal = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
     let discount = 0
     if (couponCode) {
@@ -40,41 +75,14 @@ export async function POST(request: NextRequest) {
 
     const total = subtotal + deliveryFee - discount
 
-    const productIds = [...new Set(items.map((i) => i.productId))]
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, name: true },
-    })
-    const productMap = new Map(products.map((p) => [p.id, p.name]))
-
-    const variantIds = items.map((i) => i.variantId).filter(Boolean) as string[]
-    const variants = variantIds.length > 0
-      ? await prisma.productVariant.findMany({
-          where: { id: { in: variantIds } },
-        })
-      : []
-    const variantMap = new Map(variants.map((v) => [v.id, v]))
-
-    for (const item of items) {
-      if (item.variantId) {
-        const variant = variantMap.get(item.variantId)
-        if (!variant) return error(`Variant not found for item in product ${productMap.get(item.productId) || item.productId}`)
-        if (variant.stock < item.quantity) {
-          return error(
-            `Insufficient stock for "${productMap.get(item.productId) || "Product"}". Available: ${variant.stock}, requested: ${item.quantity}`
-          )
-        }
-      }
-    }
-
     const order = await prisma.$transaction(async (tx) => {
-      for (const item of items) {
+      for (const item of validatedItems) {
         if (item.variantId) {
           const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } })
           if (!variant) throw new Error(`Variant not found: ${item.variantId}`)
           if (variant.stock < item.quantity) {
             throw new Error(
-              `Insufficient stock for "${productMap.get(item.productId) || "Product"}". Available: ${variant.stock}, requested: ${item.quantity}`
+              `Insufficient stock for "${productMap.get(item.productId)?.name || "Product"}". Available: ${variant.stock}, requested: ${item.quantity}`
             )
           }
           await tx.productVariant.update({
@@ -115,12 +123,12 @@ export async function POST(request: NextRequest) {
             },
           },
           items: {
-            create: items.map((item) => {
+            create: validatedItems.map((item) => {
               const variant = item.variantId ? variantMap.get(item.variantId) : undefined
               return {
                 productId: item.productId,
                 variantId: item.variantId,
-                name: productMap.get(item.productId) ?? "",
+                name: productMap.get(item.productId)?.name ?? "",
                 size: variant?.size ?? null,
                 color: variant?.color ?? null,
                 quantity: item.quantity,

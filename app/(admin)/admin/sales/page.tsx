@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ShoppingCart, ShoppingBag, TrendingUp } from "lucide-react"
+import { ShoppingCart, ShoppingBag } from "lucide-react"
 import { AdminHubCard, AdminPageHeader } from "@/components/admin/admin-ui"
 
 const sections = [

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { getCustomerPhone } from "@/lib/customer"
-import { User, Package, Settings, LogOut, ChevronRight } from "lucide-react"
+import { User, Package, Settings, LogOut } from "lucide-react"
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()

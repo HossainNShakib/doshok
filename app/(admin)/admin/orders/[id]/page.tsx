@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UpdateOrderStatus } from "@/components/admin/update-order-status"
