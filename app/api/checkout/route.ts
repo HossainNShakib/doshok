@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import { success, error } from "@/lib/api-response"
 import { generateOrderNumber } from "@/lib/order-number"
 import { getDeliveryFee } from "@/lib/delivery"
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return error(parsed.error.issues[0]?.message ?? "Invalid input")
 
     const { items, deliveryZone, paymentMethod, couponCode, ...customer } = parsed.data
+
+    const session = await auth()
+    const userId = session?.user?.id ?? null
 
     if (paymentMethod !== "cod") {
       return error("Online payment is setup-ready but not yet active. Please select Cash on Delivery.")
@@ -102,11 +106,13 @@ export async function POST(request: NextRequest) {
       return tx.order.create({
         data: {
           orderNumber,
+          userId,
           customerName: customer.name,
           customerEmail: customer.email || "",
           customerPhone: customer.phone,
           subtotal,
           deliveryFee,
+          discount,
           total,
           paidAmount: 0,
           paymentMethod,

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
+import { auth } from "@/lib/auth"
 
 export async function PATCH(
   request: NextRequest,
@@ -8,6 +9,9 @@ export async function PATCH(
 ) {
   const { id } = await params
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     const body = await request.json()
     const zone = await prisma.deliveryZone.update({ where: { id }, data: body })
     return success(zone)
@@ -17,11 +21,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     await prisma.deliveryZone.delete({ where: { id } })
     return success({ deleted: true })
   } catch {

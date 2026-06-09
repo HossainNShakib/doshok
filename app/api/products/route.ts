@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
 import { productSchema } from "@/lib/validations"
+import { auth } from "@/lib/auth"
 import { NextRequest } from "next/server"
 
 export async function GET(request: NextRequest) {
@@ -22,6 +23,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     const body = await request.json()
     const parsed = productSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.issues[0]?.message ?? "Invalid input")

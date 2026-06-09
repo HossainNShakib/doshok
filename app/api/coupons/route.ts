@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
+import { auth } from "@/lib/auth"
 import { z } from "zod"
 
 const couponSchema = z.object({
@@ -14,12 +15,18 @@ const couponSchema = z.object({
 })
 
 export async function GET() {
+  const session = await auth()
+  if (!session?.user) return error("Unauthorized", 401)
+
   const coupons = await prisma.coupon.findMany({ orderBy: { createdAt: "desc" } })
   return success(coupons)
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     const body = await request.json()
     const parsed = couponSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.issues[0]?.message ?? "Invalid input")

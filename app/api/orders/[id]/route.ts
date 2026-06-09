@@ -4,9 +4,12 @@ import { auth } from "@/lib/auth"
 import { success, error } from "@/lib/api-response"
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth()
+  if (!session?.user) return error("Unauthorized", 401)
+
   const { id } = await params
 
   const order = await prisma.order.findUnique({

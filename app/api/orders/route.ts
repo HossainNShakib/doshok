@@ -6,6 +6,16 @@ import { success, error } from "@/lib/api-response"
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const phone = searchParams.get("phone")
+  const userId = searchParams.get("userId")
+
+  if (userId) {
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      include: { items: true, address: true },
+      orderBy: { createdAt: "desc" },
+    })
+    return success(orders)
+  }
 
   if (phone) {
     const orders = await prisma.order.findMany({

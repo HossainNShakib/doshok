@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getCustomerPhone } from "@/lib/customer"
 import { Package, ShoppingBag } from "lucide-react"
 
 type Order = {
@@ -27,20 +27,20 @@ const statusColors: Record<string, "default" | "secondary" | "destructive" | "ou
 }
 
 export default function AccountOrdersPage() {
+  const { data: session } = useSession()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const phone = getCustomerPhone()
-    if (!phone) return
-    fetch(`/api/orders?phone=${encodeURIComponent(phone)}`)
+    if (!session?.user?.id) return
+    fetch(`/api/orders?userId=${session.user.id}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.success) setOrders(d.data)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [session])
 
   if (loading) return (
     <div className="text-center py-12 text-sm text-muted-foreground animate-pulse">Loading orders...</div>

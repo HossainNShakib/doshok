@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { Bell, ChevronDown, MapPin, Search, ShoppingCart, User } from "lucide-react"
+import { Bell, ChevronDown, MapPin, Search, ShoppingCart, User, Package } from "lucide-react"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/lib/auth"
 import { CartCount } from "@/components/store/cart-count"
 import { MobileMenu } from "@/components/store/mobile-menu"
 import { SiteFooter } from "@/components/store/site-footer"
@@ -19,6 +20,8 @@ async function getHeaderCategories() {
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const categories = await getHeaderCategories()
+  const session = await auth()
+  const isLoggedIn = !!session?.user
 
   return (
     <div className={styles.shell}>
@@ -35,10 +38,19 @@ export default async function StoreLayout({ children }: { children: React.ReactN
               <Link href="/about">About Doshok</Link>
               <Link href="/track-order">Track Order</Link>
               <span className={styles.divider} />
-              <Link href="/account/login" className={styles.signup}>
-                Sign Up
-              </Link>
-              <Link href="/account/login" className={styles.login}>Login</Link>
+              {isLoggedIn ? (
+                <>
+                  <Link href="/account" className={styles.login}>Account</Link>
+                  <Link href="/account/orders" className={styles.login}>Orders</Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/auth/register" className={styles.signup}>
+                    Sign Up
+                  </Link>
+                  <Link href="/auth/login" className={styles.login}>Login</Link>
+                </>
+              )}
             </div>
           </div>
 
@@ -84,10 +96,10 @@ export default async function StoreLayout({ children }: { children: React.ReactN
               <Link href="/track-order" className={styles.iconBtn} aria-label="Notifications">
                 <Bell className="h-5 w-5" />
               </Link>
-              <Link href="/account" className={styles.iconBtn} aria-label="Account">
+              <Link href={isLoggedIn ? "/account" : "/auth/login"} className={styles.iconBtn} aria-label="Account">
                 <User className="h-5 w-5" />
               </Link>
-              <MobileMenu />
+              <MobileMenu isLoggedIn={isLoggedIn} />
             </div>
           </div>
         </header>

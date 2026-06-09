@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
 import { productSchema } from "@/lib/validations"
+import { auth } from "@/lib/auth"
 
 export async function GET(
   _request: NextRequest,
@@ -25,6 +26,9 @@ export async function PATCH(
   const { id } = await params
 
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     const body = await request.json()
 
     const { variants, ...productData } = body
@@ -55,12 +59,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
 
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     await prisma.product.delete({ where: { id } })
     return success({ deleted: true })
   } catch {

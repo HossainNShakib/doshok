@@ -1,29 +1,28 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { getCustomerPhone } from "@/lib/customer"
-import { User, Package, Settings, LogOut } from "lucide-react"
+import { SessionProvider, useSession, signOut } from "next-auth/react"
+import { User, Package, Settings, LogOut, AlertTriangle, X } from "lucide-react"
+import { useState } from "react"
 
-export default function AccountLayout({ children }: { children: React.ReactNode }) {
+function AccountLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [phone, setPhone] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const { data: session, status } = useSession()
+  const [bannerDismissed, setBannerDismissed] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-    const p = getCustomerPhone()
-    if (!p && pathname !== "/account/login") {
-      router.push("/account/login")
-      return
-    }
-    setPhone(p)
-  }, [pathname, router])
+  const isLoginPage = pathname === "/account/login"
 
-  if (!mounted) return null
-  if (!phone && pathname !== "/account/login") return null
+  if (status === "loading") return null
+
+  if (!session?.user && !isLoginPage) {
+    router.push("/auth/login")
+    return null
+  }
+
+  const isVerified = !!session?.user?.emailVerified
+  const showBanner = !isVerified && !isLoginPage && !bannerDismissed
 
   const navLinks = [
     { href: "/account", label: "Dashboard", icon: User },
@@ -31,18 +30,36 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     { href: "/account/profile", label: "Profile", icon: Settings },
   ]
 
-  function handleLogout() {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("doshok_customer_phone")
-    }
-    router.push("/account/login")
+  async function handleLogout() {
+    await signOut({ redirect: false })
+    router.push("/auth/login")
+    router.refresh()
   }
-
-  const isLoginPage = pathname === "/account/login"
 
   return (
     <div className="container mx-auto container-px py-8 md:py-12">
-      {!isLoginPage && (
+      {showBanner && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+          <p className="flex-1">
+            Your email is not verified.{" "}
+            <Link href="/account" className="font-medium underline underline-offset-2 hover:text-amber-900">
+              Resend verification
+            </Link>
+          </p>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="shrink-0 text-amber-500 hover:text-amber-700 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {isLoginPage ? (
+        children
+      ) : (
         <div className="flex items-start gap-8 lg:gap-12">
           {/* Sidebar */}
           <aside className="w-56 lg:w-64 shrink-0 hidden md:block">
@@ -108,7 +125,14 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           <div className="flex-1 min-w-0 hidden md:block">{children}</div>
         </div>
       )}
-      {isLoginPage && children}
     </div>
+  )
+}
+
+export default function AccountLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      <AccountLayoutContent>{children}</AccountLayoutContent>
+    </SessionProvider>
   )
 }

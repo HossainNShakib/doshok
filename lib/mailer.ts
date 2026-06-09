@@ -4,10 +4,42 @@ const resendApiKey = process.env.RESEND_API_KEY
 const adminEmail = process.env.ADMIN_EMAIL || "admin@doshok.com"
 const fromEmail = process.env.FROM_EMAIL || "noreply@doshok.com"
 const otpFromEmail = process.env.OTP_FROM_EMAIL || "Doshok <otp@doshok.com>"
+const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
 
 function getResend(): Resend | null {
   if (!resendApiKey) return null
   return new Resend(resendApiKey)
+}
+
+export async function sendVerificationEmail(email: string, token: string): Promise<void> {
+  try {
+    const resend = getResend()
+    if (!resend) return
+
+    const verifyUrl = `${appUrl}/verify-email?token=${token}`
+
+    await resend.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: "Verify your email — Doshok",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f9f9f9;">
+          <div style="background:#fff;border-radius:12px;padding:32px;text-align:center;">
+            <h1 style="font-size:24px;color:#111;margin:0 0 8px;">Doshok</h1>
+            <p style="color:#555;margin:0 0 24px;">Style That Speaks</p>
+            <p style="font-size:14px;color:#555;margin:0 0 24px;">Click the button below to verify your email address.</p>
+            <a href="${verifyUrl}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;margin:0 0 24px;">Verify Email</a>
+            <p style="font-size:13px;color:#888;margin:0 0 4px;">Or copy this link into your browser:</p>
+            <p style="font-size:12px;color:#888;margin:0;word-break:break-all;">${verifyUrl}</p>
+            <p style="font-size:13px;color:#888;margin:24px 0 0;">This link expires in 24 hours.</p>
+            <p style="font-size:13px;color:#888;margin:4px 0 0;">If you didn't create an account, you can safely ignore this email.</p>
+          </div>
+        </div>
+      `,
+    })
+  } catch {
+    console.warn("[mailer] sendVerificationEmail failed")
+  }
 }
 
 export async function sendOtpEmail(email: string, code: string): Promise<void> {

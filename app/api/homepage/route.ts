@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
+import { auth } from "@/lib/auth"
 
 export async function GET() {
   const config = await prisma.homepageConfig.findUnique({
@@ -22,6 +23,9 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     const body = await request.json()
     const featuredIds = Array.isArray(body.featuredIds)
       ? JSON.stringify(body.featuredIds)

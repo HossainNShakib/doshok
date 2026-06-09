@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getCustomerPhone } from "@/lib/customer"
-import { Package, ShoppingBag, ArrowRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Package, ShoppingBag, ArrowRight, BadgeCheck, AlertTriangle, Loader2, Mail } from "lucide-react"
+import { toast } from "sonner"
 
 type Order = {
   id: string
@@ -18,20 +20,41 @@ type Order = {
 }
 
 export default function AccountDashboardPage() {
+  const { data: session } = useSession()
   const [orders, setOrders] = useState<Order[]>([])
-  const [phone, setPhone] = useState("")
+  const [resending, setResending] = useState(false)
 
   useEffect(() => {
-    const p = getCustomerPhone()
-    if (!p) return
-    setPhone(p)
-    fetch(`/api/orders?phone=${encodeURIComponent(p)}`)
+    if (!session?.user?.id) return
+    fetch(`/api/orders?userId=${session.user.id}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.success) setOrders(d.data.slice(0, 5))
       })
       .catch(() => {})
-  }, [])
+  }, [session])
+
+  const handleResend = useCallback(async () => {
+    if (!session?.user?.email) return
+    setResending(true)
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: session.user.email }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success("Verification email sent. Check your inbox.")
+      } else {
+        toast.error(data.error ?? "Failed to send")
+      }
+    } catch {
+      toast.error("Something went wrong")
+    } finally {
+      setResending(false)
+    }
+  }, [session])
 
   const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
     pending: "secondary",
@@ -41,12 +64,20 @@ export default function AccountDashboardPage() {
     cancelled: "destructive",
   }
 
+  const displayName = session?.user?.firstName || session?.user?.name || "there"
+  const isVerified = !!session?.user?.emailVerified
+
   return (
     <div className="space-y-8">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2 font-medium">Welcome back</p>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Account</h1>
-        <p className="text-muted-foreground mt-1 text-sm">{phone}</p>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Hello, {displayName}</h1>
+          {isVerified && (
+            <BadgeCheck className="h-6 w-6 text-primary shrink-0" />
+          )}
+        </div>
+        <p className="text-muted-foreground mt-1 text-sm">{session?.user?.email}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -69,7 +100,33 @@ export default function AccountDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-medium text-green-600">Active</p>
+            {isVerified ? (
+              <p className="text-sm font-medium text-green-600 flex items-center gap-1.5">
+                <BadgeCheck className="h-4 w-4" />
+                Verified
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-amber-600 flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4" />
+                  Email not verified
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs rounded-xl"
+                  onClick={handleResend}
+                  disabled={resending}
+                >
+                  {resending ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                  ) : (
+                    <Mail className="h-3 w-3 mr-1.5" />
+                  )}
+                  {resending ? "Sending..." : "Resend Verification"}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

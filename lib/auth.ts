@@ -27,7 +27,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.name,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
           role: user.role,
+          emailVerified: user.emailVerified,
         }
       },
     }),
@@ -37,6 +41,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = (user as { role: string }).role
         token.id = user.id
+        token.firstName = (user as { firstName?: string | null }).firstName
+        token.lastName = (user as { lastName?: string | null }).lastName
+        token.phone = (user as { phone?: string | null }).phone
+      }
+      if (token.id) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { emailVerified: true },
+        })
+        token.emailVerified = fresh?.emailVerified?.toISOString() ?? null
       }
       return token
     },
@@ -44,12 +58,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.role = token.role as string
         session.user.id = token.id as string
+        session.user.firstName = token.firstName as string | null | undefined
+        session.user.lastName = token.lastName as string | null | undefined
+        session.user.phone = token.phone as string | null | undefined
+        session.user.emailVerified = token.emailVerified ? new Date(token.emailVerified as string) : null
       }
       return session
     },
   },
   pages: {
-    signIn: "/admin/login",
+    signIn: "/auth/login",
   },
   session: {
     strategy: "jwt",

@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
+import { auth } from "@/lib/auth"
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
+  const session = await auth()
+  if (!session?.user) return error("Unauthorized", 401)
+
   const coupon = await prisma.coupon.findUnique({ where: { id } })
   if (!coupon) return error("Not found", 404)
   return success(coupon)
@@ -17,7 +22,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     const body = await request.json()
     const data: Record<string, unknown> = { ...body }
     if (data.expiresAt) data.expiresAt = new Date(data.expiresAt as string)
@@ -30,11 +39,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
   try {
+    const session = await auth()
+    if (!session?.user) return error("Unauthorized", 401)
+
     await prisma.coupon.delete({ where: { id } })
     return success({ deleted: true })
   } catch {

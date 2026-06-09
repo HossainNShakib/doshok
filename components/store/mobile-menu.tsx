@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, User, Search } from "lucide-react"
+import { Menu, X, User, Search, Package, LogOut } from "lucide-react"
 
-export function MobileMenu() {
+export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -88,14 +88,45 @@ export function MobileMenu() {
 
             <div className="border-t border-border/50 my-3" />
 
-            <Link
-              href="/account"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <User className="h-4 w-4" />
-              Account
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link
+                  href="/account"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  My Account
+                </Link>
+                <Link
+                  href="/account/orders"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <Package className="h-4 w-4" />
+                  Orders
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/register"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  Sign Up
+                </Link>
+                <Link
+                  href="/auth/login"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Login
+                </Link>
+              </>
+            )}
             <Link
               href="/search"
               onClick={() => setOpen(false)}

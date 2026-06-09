@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { signIn, useSession } from "next-auth/react"
+import { signIn, useSession, signOut } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,20 +14,33 @@ function LoginForm() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/admin/dashboard")
-    }
-  }, [status, router])
+    setMounted(true)
+  }, [])
 
-  if (status === "loading" || status === "authenticated") {
+  useEffect(() => {
+    if (status === "loading") return
+    if (status === "authenticated") {
+      if (session?.user?.role === "admin") {
+        router.push("/admin/dashboard")
+      } else {
+        signOut({ redirect: false })
+        router.push("/auth/login")
+      }
+    }
+  }, [status, session, router])
+
+  if (!mounted || status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f5f1] px-4">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     )
   }
+
+  if (status === "authenticated") return null
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -46,6 +59,17 @@ function LoginForm() {
     if (result?.error) {
       toast.error("Invalid email or password")
       setLoading(false)
+      return
+    }
+
+    const sessionRes = await fetch("/api/auth/session")
+    const sessionData = await sessionRes.json()
+
+    if (sessionData?.user?.role !== "admin") {
+      await signOut({ redirect: false })
+      toast.error("This portal is for administrators only")
+      router.push("/auth/login")
+      router.refresh()
       return
     }
 

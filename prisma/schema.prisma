@@ -9,15 +9,36 @@ datasource db {
 model User {
   id            String    @id @default(cuid())
   name          String?
+  firstName     String?
+  lastName      String?
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  phone         String?
+  dateOfBirth   DateTime?
+  gender        String?
   password      String?
-  role          String    @default("admin")
+  role          String    @default("customer")
+  status        String    @default("active")
   accounts      Account[]
   sessions      Session[]
+  orders        Order[]
+  emailTokens   EmailVerificationToken[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([email])
 }
 
 model Account {
@@ -124,6 +145,8 @@ model Order {
   customerName   String
   customerEmail  String
   customerPhone  String
+  userId         String?
+  user           User?           @relation(fields: [userId], references: [id])
   items          OrderItem[]
   address        Address?
   shipment       OrderShipment?
@@ -140,6 +163,8 @@ model Order {
   couponCode     String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+
+  @@index([userId])
 }
 
 model OrderItem {
