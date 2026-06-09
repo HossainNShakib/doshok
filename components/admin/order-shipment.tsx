@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -56,6 +57,8 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
   const [selectedProvider, setSelectedProvider] = useState<string>("PATHAO")
   const [customerNote, setCustomerNote] = useState("")
   const [adminNote, setAdminNote] = useState("")
+  const [cityId, setCityId] = useState("")
+  const [areaId, setAreaId] = useState("")
 
   async function fetchShipment() {
     try {
@@ -72,18 +75,32 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
   async function handleCreateShipment() {
     setLoading(true)
     try {
+      const body: Record<string, string> = {
+        courierProvider: selectedProvider,
+        customerNote,
+        adminNote,
+      }
+      if (selectedProvider === "PATHAO") {
+        if (cityId) body.cityId = cityId
+        if (areaId) body.areaId = areaId
+      }
       const res = await fetch(`/api/admin/orders/${orderId}/shipment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courierProvider: selectedProvider,
-          customerNote: customerNote,
-          adminNote: adminNote,
-        }),
+        body: JSON.stringify(body),
       })
       const d = await res.json()
       if (d.success) {
-        toast.success("Shipment created")
+        const isPathao = d.data?.courierProvider === "PATHAO"
+        toast.success(
+          isPathao
+            ? "Parcel created in Pathao successfully"
+            : "Shipment created (manual fulfillment)"
+        )
+        setCityId("")
+        setAreaId("")
+        setCustomerNote("")
+        setAdminNote("")
         fetchShipment()
       } else {
         toast.error(d.error ?? "Failed to create shipment")
@@ -145,6 +162,32 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
             </Select>
           </div>
 
+          {selectedProvider === "PATHAO" && (
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-primary/10 bg-primary/[0.03] p-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Pathao City ID</Label>
+                <Input
+                  value={cityId}
+                  onChange={(e) => setCityId(e.target.value)}
+                  placeholder="e.g. 1 (Dhaka)"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Pathao Area/Zone ID</Label>
+                <Input
+                  value={areaId}
+                  onChange={(e) => setAreaId(e.target.value)}
+                  placeholder="e.g. 1"
+                />
+              </div>
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted-foreground">
+                  Enter Pathao city and zone/area IDs. In LIVE mode, these are required. Leave blank to use sandbox defaults.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Customer Note (optional)</Label>
             <Textarea
@@ -170,9 +213,15 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
             {loading ? "Creating..." : "Assign Courier & Create Parcel"}
           </Button>
 
-          <p className="text-center text-xs text-amber-600 font-medium">
-            Live courier API not connected yet. Parcel will be created locally with SETUP_READY status.
-          </p>
+          {selectedProvider === "PATHAO" ? (
+            <p className="text-center text-xs text-green-600 font-medium">
+              Creating a real Pathao parcel via the Pathao API.
+            </p>
+          ) : (
+            <p className="text-center text-xs text-amber-600 font-medium">
+              Steadfast and RedX integration coming soon. Parcel will be created locally with SETUP_READY status.
+            </p>
+          )}
         </div>
       </AdminSectionCard>
     )
@@ -239,9 +288,15 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
           })}
         </div>
 
-        <p className="text-center text-xs text-amber-600 font-medium">
-          Live courier API not connected yet. Status updates are local only.
-        </p>
+        {shipment.courierProvider === "PATHAO" ? (
+            <p className="text-center text-xs text-muted-foreground">
+              Pathao parcel. Use manual status updates or implement webhooks for auto-sync.
+            </p>
+          ) : (
+            <p className="text-center text-xs text-amber-600 font-medium">
+              {shipment.courierProvider} integration pending. Status updates are local only.
+            </p>
+          )}
       </div>
     </AdminSectionCard>
   )

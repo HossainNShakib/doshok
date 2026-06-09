@@ -366,6 +366,8 @@ export const shipmentCreateSchema = z.object({
   courierProvider: courierProvider,
   customerNote: z.string().optional().default(""),
   adminNote: z.string().optional().default(""),
+  cityId: z.string().optional().default(""),
+  areaId: z.string().optional().default(""),
 })
 
 export const shipmentUpdateSchema = z.object({

@@ -99,6 +99,12 @@ export default async function AdminOrderDetailPage({
                 <span className="text-xs">{order.paymentExpiresAt.toLocaleString()}</span>
               </div>
             )}
+            {order.stockRestoredAt && (
+              <div className="flex items-center gap-3">
+                <span className="w-20 shrink-0 text-xs font-bold uppercase tracking-[0.12em] text-neutral-400">Stock</span>
+                <span className="text-xs text-green-600">Restored {order.stockRestoredAt.toLocaleString()}</span>
+              </div>
+            )}
             {order.transactions.length > 0 && (
               <div className="mt-2 pt-2 border-t border-black/5">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400 mb-1">Transactions</p>

@@ -199,6 +199,7 @@ model Order {
   couponCode     String?
   paymentExpiresAt   DateTime?
   paymentVerifiedAt  DateTime?
+  stockRestoredAt     DateTime?
   refundedAt     DateTime?
   refundAmount   Int              @default(0)
   refundReason   String?

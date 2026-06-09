@@ -341,25 +341,199 @@ export async function processFailedPayment(
       },
     })
 
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          where: { variantId: { not: null } },
+          select: { variantId: true, quantity: true },
+        },
+      },
+    })
+
+    if (!order) return
+
+    if (order.stockRestoredAt) return
+
+    const terminalStatuses = ["cancelled", "returned", "shipped", "delivered"]
+    if (terminalStatuses.includes(order.orderStatus)) return
+
+    const stockRestoredAt = new Date()
+
+    for (const item of order.items) {
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        })
+      }
+    }
+
     await tx.order.update({
       where: { id: orderId },
-      data: { paymentStatus: "failed" },
+      data: {
+        paymentStatus: "failed",
+        stockRestoredAt,
+      },
     })
   })
 }
 
 export async function cancelExpiredPayments(): Promise<number> {
-  const result = await prisma.order.updateMany({
+  const expiredOrders = await prisma.order.findMany({
     where: {
       paymentStatus: "pending",
       paymentMethod: { not: "cod" },
       paymentExpiresAt: { not: null, lt: new Date() },
       orderStatus: "pending",
     },
-    data: {
-      orderStatus: "cancelled",
-      paymentStatus: "cancelled",
+    select: { id: true },
+  })
+
+  let count = 0
+  for (const order of expiredOrders) {
+    const result = await expirePendingPayment(order.id, "expired")
+    if (result.expired) count++
+  }
+
+  return count
+}
+
+export type ExpirePaymentResult = { expired: boolean; reason: string; stockRestored: boolean }
+
+export async function expirePendingPayment(
+  orderId: string,
+  reason: string = "expired"
+): Promise<ExpirePaymentResult> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        where: { variantId: { not: null } },
+        select: { variantId: true, quantity: true },
+      },
     },
   })
-  return result.count
+
+  if (!order) return { expired: false, reason: "not_found", stockRestored: false }
+
+  if (order.stockRestoredAt) return { expired: false, reason: "already_restored", stockRestored: false }
+
+  if (order.paymentStatus === "paid") return { expired: false, reason: "already_paid", stockRestored: false }
+
+  if (order.paymentMethod === "cod") return { expired: false, reason: "cod_order", stockRestored: false }
+
+  const terminalStatuses = ["cancelled", "returned", "shipped", "delivered"]
+  if (terminalStatuses.includes(order.orderStatus)) {
+    return { expired: false, reason: "order_not_pending", stockRestored: false }
+  }
+
+  const stockRestoredAt = new Date()
+  let stockRestored = false
+
+  await prisma.$transaction(async (tx) => {
+    const recheck = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { stockRestoredAt: true, paymentStatus: true, orderStatus: true },
+    })
+
+    if (recheck?.stockRestoredAt) {
+      return
+    }
+
+    if (recheck?.paymentStatus === "paid") {
+      return
+    }
+
+    if (terminalStatuses.includes(recheck?.orderStatus ?? "")) {
+      return
+    }
+
+    for (const item of order.items) {
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        })
+      }
+    }
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        orderStatus: "cancelled",
+        paymentStatus: "cancelled",
+        stockRestoredAt,
+      },
+    })
+
+    stockRestored = true
+  })
+
+  return {
+    expired: stockRestored,
+    reason: stockRestored ? reason : "not_expired",
+    stockRestored,
+  }
+}
+
+export async function restoreStockForPaymentFailure(orderId: string): Promise<boolean> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        where: { variantId: { not: null } },
+        select: { variantId: true, quantity: true },
+      },
+    },
+  })
+
+  if (!order) return false
+  if (order.stockRestoredAt) return false
+  if (order.paymentStatus === "paid") return false
+  if (order.paymentMethod === "cod") return false
+
+  const terminalStatuses = ["cancelled", "returned", "shipped", "delivered"]
+  if (terminalStatuses.includes(order.orderStatus)) return false
+
+  const stockRestoredAt = new Date()
+  let restored = false
+
+  await prisma.$transaction(async (tx) => {
+    const recheck = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { stockRestoredAt: true, paymentStatus: true, orderStatus: true },
+    })
+
+    if (recheck?.stockRestoredAt) {
+      return
+    }
+    if (recheck?.paymentStatus === "paid") {
+      return
+    }
+    if (terminalStatuses.includes(recheck?.orderStatus ?? "")) {
+      return
+    }
+
+    for (const item of order.items) {
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        })
+      }
+    }
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: "failed",
+        stockRestoredAt,
+      },
+    })
+
+    restored = true
+  })
+
+  return restored
 }

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { AlertTriangle, RefreshCw, ArrowLeft, Clock } from "lucide-react"
+import { AlertTriangle, RefreshCw, ArrowLeft, Clock, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
 type PendingOrder = {
@@ -18,6 +18,7 @@ type PendingOrder = {
   paymentStatus: string
   paymentExpiresAt: string | null
   orderStatus: string
+  stockRestoredAt: string | null
 } | null
 
 const REASON_MESSAGES: Record<string, { title: string; description: string }> = {
@@ -46,8 +47,8 @@ const REASON_MESSAGES: Record<string, { title: string; description: string }> = 
     description: "Your bKash transaction failed. Please try again.",
   },
   expired: {
-    title: "Payment Expired",
-    description: "Your payment window has expired. You can retry within the time limit.",
+    title: "Payment Session Expired",
+    description: "Your payment session has expired. Please place a new order to continue.",
   },
   missing_order_id: {
     title: "Order Not Found",
@@ -166,6 +167,12 @@ export default function PaymentFailedPage() {
                 <span className="text-sm font-medium">
                   {isExpired ? "Payment window has expired" : `Payment expires in ${expiryInfo.remaining}`}
                 </span>
+              </div>
+            )}
+            {pendingOrder.stockRestoredAt && (
+              <div className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3 text-green-700">
+                <RotateCcw className="h-4 w-4 shrink-0" />
+                <span className="text-sm font-medium">Inventory has been restored to the product.</span>
               </div>
             )}
           </CardContent>

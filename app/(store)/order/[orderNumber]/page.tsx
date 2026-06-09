@@ -133,6 +133,20 @@ export default async function OrderConfirmationPage({
         </div>
       )}
 
+      {order.orderStatus === "cancelled" && order.paymentMethod !== "cod" && (
+        <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
+          <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <AlertTriangle className="h-7 w-7 text-red-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-red-800">Order Cancelled</h2>
+          <p className="text-sm text-red-700 mt-1">
+            {order.stockRestoredAt
+              ? "Payment was not completed and your reserved inventory has been returned to the product."
+              : "This order was cancelled."}
+          </p>
+        </div>
+      )}
+
       <div className="text-center mb-12">
         <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="h-10 w-10 text-green-600" />

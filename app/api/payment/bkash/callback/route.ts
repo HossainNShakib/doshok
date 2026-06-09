@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { error } from "@/lib/api-response"
 import {
   verifyBkashPayment,
   validateOrderForPayment,
   checkIdempotency,
   processSuccessfulPayment,
+  expirePendingPayment,
+  restoreStockForPaymentFailure,
 } from "@/lib/payment/bkash"
 
 export async function GET(request: NextRequest) {
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const trxID = searchParams.get("trxID")
 
     if (status !== "success" || !trxID) {
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, "payment_not_success")
     }
 
@@ -35,6 +37,11 @@ export async function GET(request: NextRequest) {
       order.total
     )
     if (!validation.valid) {
+      if (validation.reason === "expired") {
+        await expirePendingPayment(orderId, "expired")
+      } else if (validation.reason === "wrong_status") {
+        await restoreStockForPaymentFailure(orderId)
+      }
       return redirectToFailed(request.url, orderId, validation.reason)
     }
 
@@ -43,24 +50,29 @@ export async function GET(request: NextRequest) {
       if (idempotency.transaction.status === "success") {
         return redirectToSuccess(request.url, orderId)
       }
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, "transaction_failed")
     }
 
     const verified = await verifyBkashPayment(trxID)
     if ("error" in verified) {
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, "verification_failed")
     }
 
     if (verified.paymentExecuteStatus !== "success") {
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, "payment_not_completed")
     }
 
     if (verified.merchantInvoiceNumber !== order.orderNumber) {
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, "invoice_mismatch")
     }
 
     const verifiedAmount = parseFloat(verified.amount)
     if (verifiedAmount !== order.total) {
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, "amount_mismatch")
     }
 
@@ -73,6 +85,7 @@ export async function GET(request: NextRequest) {
     )
 
     if (!result.success) {
+      await restoreStockForPaymentFailure(orderId)
       return redirectToFailed(request.url, orderId, result.reason)
     }
 

@@ -62,6 +62,12 @@ export async function POST(request: NextRequest) {
       return error("Failed to create payment. Please try again.")
     }
 
+    const newExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000)
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { paymentExpiresAt: newExpiresAt },
+    })
+
     const paymentUrl = `${baseUrl}/tokenized/checkout/pay/${bkashResult.paymentId}`
 
     return success({ paymentId: bkashResult.paymentId, paymentUrl })
