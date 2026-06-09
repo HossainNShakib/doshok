@@ -341,18 +341,21 @@ model CourierProviderSetting {
 }
 
 model OrderShipment {
-  id                  String   @id @default(cuid())
-  orderId             String   @unique
-  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  courierProvider     String   @default("PATHAO")
-  status              String   @default("NOT_CREATED")
+  id                  String    @id @default(cuid())
+  orderId             String    @unique
+  order               Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courierProvider     String    @default("PATHAO")
+  status              String    @default("NOT_CREATED")
   trackingCode        String?
   consignmentId       String?
   courierResponseJson String?
   customerNote        String?
   adminNote           String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  lastCourierUpdate   DateTime?
+  lastCourierStatus   String?
+  lastCourierPayload  String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 model AbandonedCheckout {
