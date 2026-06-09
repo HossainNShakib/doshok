@@ -79,6 +79,7 @@ export const checkoutSchema = z.object({
   deliveryZone: z.enum(["chatto", "dhaka", "outside"]),
   paymentMethod: z.string().min(1),
   couponCode: z.string().optional(),
+  phoneVerifiedToken: z.string().min(1, "Phone verification is required"),
   items: z.array(z.object({
     productId: z.string(),
     variantId: z.string().optional(),
@@ -149,6 +150,11 @@ export const siteSettingsSchema = z.object({
 export const otpSchema = z.object({
   phone: z.string().min(11),
   code: z.string().length(6),
+})
+
+export const phoneVerifySchema = z.object({
+  firebaseIdToken: z.string().min(1, "Firebase ID token is required"),
+  phone: z.string().min(11, "Valid phone number is required"),
 })
 
 export const abandonedPublicUpdateSchema = z.object({

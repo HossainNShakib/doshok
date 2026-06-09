@@ -7,6 +7,7 @@ declare module "next-auth" {
     lastName?: string | null
     phone?: string | null
     emailVerified?: Date | null
+    phoneVerifiedAt?: Date | null
   }
   interface Session {
     user: {
@@ -19,6 +20,7 @@ declare module "next-auth" {
       lastName?: string | null
       phone?: string | null
       emailVerified?: Date | null
+      phoneVerifiedAt?: Date | null
     }
   }
 }
@@ -31,5 +33,6 @@ declare module "next-auth/jwt" {
     lastName?: string | null
     phone?: string | null
     emailVerified?: string | null
+    phoneVerifiedAt?: string | null
   }
 }

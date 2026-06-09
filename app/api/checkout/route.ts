@@ -6,6 +6,7 @@ import { generateOrderNumber } from "@/lib/order-number"
 import { getDeliveryFee } from "@/lib/delivery"
 import { checkoutSchema } from "@/lib/validations"
 import { sendOrderConfirmationEmail, sendAdminNewOrderEmail } from "@/lib/mailer"
+import { verifyPhoneVerifiedToken } from "@/lib/phone-verify-token"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +14,33 @@ export async function POST(request: NextRequest) {
     const parsed = checkoutSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.issues[0]?.message ?? "Invalid input")
 
-    const { items, deliveryZone, paymentMethod, couponCode, ...customer } = parsed.data
+    const { items, deliveryZone, paymentMethod, couponCode, phoneVerifiedToken, ...customer } = parsed.data
 
     const session = await auth()
     const userId = session?.user?.id ?? null
+
+    if (!phoneVerifiedToken) {
+      return error("Phone verification is required before placing an order")
+    }
+
+    const tokenResult = verifyPhoneVerifiedToken(phoneVerifiedToken)
+    if (!tokenResult.success) {
+      return error("Phone verification expired or invalid. Please verify again.")
+    }
+
+    if (tokenResult.phone !== customer.phone) {
+      return error("Phone number does not match verification")
+    }
+
+    if (userId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          phone: customer.phone,
+          phoneVerifiedAt: new Date(),
+        },
+      })
+    }
 
     if (paymentMethod !== "cod") {
       return error("Online payment is setup-ready but not yet active. Please select Cash on Delivery.")

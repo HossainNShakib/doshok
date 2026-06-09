@@ -32,6 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           phone: user.phone,
           role: user.role,
           emailVerified: user.emailVerified,
+          phoneVerifiedAt: user.phoneVerifiedAt,
         }
       },
     }),
@@ -44,13 +45,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.firstName = (user as { firstName?: string | null }).firstName
         token.lastName = (user as { lastName?: string | null }).lastName
         token.phone = (user as { phone?: string | null }).phone
+        token.phoneVerifiedAt = (user as { phoneVerifiedAt?: Date | null }).phoneVerifiedAt?.toISOString() ?? null
       }
       if (token.id) {
         const fresh = await prisma.user.findUnique({
           where: { id: token.id },
-          select: { emailVerified: true },
+          select: { emailVerified: true, phoneVerifiedAt: true },
         })
         token.emailVerified = fresh?.emailVerified?.toISOString() ?? null
+        token.phoneVerifiedAt = fresh?.phoneVerifiedAt?.toISOString() ?? null
       }
       return token
     },
@@ -62,6 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.lastName = token.lastName as string | null | undefined
         session.user.phone = token.phone as string | null | undefined
         session.user.emailVerified = token.emailVerified ? new Date(token.emailVerified as string) : null
+        session.user.phoneVerifiedAt = token.phoneVerifiedAt ? new Date(token.phoneVerifiedAt as string) : null
       }
       return session
     },

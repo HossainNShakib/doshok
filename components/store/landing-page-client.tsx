@@ -10,8 +10,10 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import type { DeliveryZone } from "@/types"
 import { DELIVERY_ZONE_NAMES } from "@/types"
-import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus, ChevronLeft, ChevronRight, Smartphone } from "lucide-react"
 import { saveLandingDraft, loadLandingDraft, clearLandingDraft, clearBuyNowContext, clearAllLandingData, saveAbandonedCheckout, getDraftToken, maskEmail, maskPhone, formatRelativeTime } from "@/lib/checkout-draft"
+import { sendPhoneOtp, confirmOtpAndGetIdToken } from "@/lib/firebase-client"
+import type { ConfirmationResult } from "@/lib/firebase-client"
 
 type PaymentMethodSetting = {
   provider: string
@@ -76,12 +78,14 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSetting[]>([])
   const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true)
   const [phone, setPhone] = useState("")
-  const [otp, setOtp] = useState("")
   const [loading, setLoading] = useState(false)
-  const [otpEmail, setOtpEmail] = useState("")
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpVerified, setOtpVerified] = useState(false)
-  const [otpError, setOtpError] = useState("")
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false)
+  const [phoneOtpCode, setPhoneOtpCode] = useState("")
+  const [phoneOtpVerified, setPhoneOtpVerified] = useState(false)
+  const [phoneOtpError, setPhoneOtpError] = useState("")
+  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState("")
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
   const [couponCode, setCouponCode] = useState("")
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponApplied, setCouponApplied] = useState(false)
@@ -332,61 +336,68 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
     setCouponError("")
   }
 
-  async function handleSendOtp() {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error("Please enter a valid email address")
-      return
-    }
+  async function handleSendPhoneOtp() {
     if (!phone || phone.length < 11) {
       toast.error("Please enter a valid phone number")
       return
     }
-    setOtpEmail(email)
     setLoading(true)
+    setPhoneOtpError("")
     try {
-      const res = await fetch("/api/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setOtpSent(true)
-        toast.success("Verification code sent to your email")
-      } else {
-        toast.error(data.error ?? "Failed to send OTP")
+      const result = await sendPhoneOtp(phone, "landing-recaptcha-container")
+      if (!result) {
+        setPhoneOtpError("Phone verification is not configured. Please contact support.")
+        toast.error("Phone verification unavailable")
+        return
       }
-    } catch {
-      toast.error("Something went wrong")
+      setConfirmationResult(result)
+      setPhoneOtpSent(true)
+      toast.success("Verification code sent to your phone")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to send code"
+      setPhoneOtpError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleVerifyOtp() {
-    if (!otp || otp.length !== 6) {
+  async function handleVerifyPhoneOtp() {
+    if (!phoneOtpCode || phoneOtpCode.length !== 6) {
       toast.error("Please enter the 6-digit code")
       return
     }
-    if (!otpEmail) {
-      toast.error("No email to verify")
+    if (!confirmationResult) {
+      toast.error("Please request a code first")
       return
     }
     setLoading(true)
+    setPhoneOtpError("")
     try {
-      const res = await fetch("/api/otp/verify", {
+      const idTokenResult = await confirmOtpAndGetIdToken(confirmationResult, phoneOtpCode)
+      if (!idTokenResult) {
+        setPhoneOtpError("Invalid code. Please try again.")
+        toast.error("Invalid code")
+        return
+      }
+
+      const res = await fetch("/api/otp/verify-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: otpEmail, code: otp }),
+        body: JSON.stringify({ firebaseIdToken: idTokenResult.idToken, phone }),
       })
-      const data = await res.json()
-      if (data.success) {
-        setOtpVerified(true)
+      const d = await res.json()
+      if (d.success) {
+        setPhoneVerifiedToken(d.data.phoneVerifiedToken)
+        setPhoneOtpVerified(true)
+        toast.success("Phone verified!")
         await placeOrder()
       } else {
-        toast.error(data.error ?? "Invalid code")
+        setPhoneOtpError(d.error ?? "Verification failed")
+        toast.error(d.error ?? "Verification failed")
       }
     } catch {
+      setPhoneOtpError("Something went wrong")
       toast.error("Something went wrong")
     } finally {
       setLoading(false)
@@ -410,6 +421,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
           deliveryZone,
           paymentMethod,
           couponCode: couponApplied ? couponCode : undefined,
+          phoneVerifiedToken,
           items: [
             {
               productId: product.id,
@@ -557,11 +569,12 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                         setSelectedSize("")
                         setSelectedColor("")
                         setQuantity(1)
-                        setOtp("")
-                        setOtpEmail("")
-                        setOtpSent(false)
-                        setOtpVerified(false)
-                        setOtpError("")
+                        setPhoneOtpSent(false)
+                        setPhoneOtpCode("")
+                        setPhoneOtpVerified(false)
+                        setPhoneOtpError("")
+                        setPhoneVerifiedToken("")
+                        setConfirmationResult(null)
                         setStep(0)
                         setValidationErrors([])
                       }}
@@ -715,6 +728,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
           <section className="bg-muted/20 rounded-2xl p-6 md:p-8 space-y-5">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 2</p>
             <h2 className="text-lg font-semibold">Contact Information</h2>
+            <p className="text-xs text-muted-foreground -mt-3">We&apos;ll send OTP to your phone</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -734,7 +748,6 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
-                  disabled={otpVerified}
                   className="h-11 rounded-xl"
                 />
               </div>
@@ -746,6 +759,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="01XXXXXXXXX"
+                  disabled={phoneOtpVerified}
                   className="h-11 rounded-xl"
                 />
               </div>
@@ -1000,27 +1014,32 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
           <section className="space-y-6 max-w-sm mx-auto text-center">
             <div className="bg-muted/20 rounded-2xl p-8 space-y-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 5</p>
-              <h2 className="text-xl font-semibold">Email Verification</h2>
+              <h2 className="text-xl font-semibold">Phone Verification</h2>
 
-              {otpVerified ? (
+              <div id="landing-recaptcha-container" ref={recaptchaContainerRef} />
+
+              {phoneOtpVerified ? (
                 <div className="flex items-center justify-center gap-2 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
                   <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                  <span className="text-sm font-medium text-green-700">Email verified!</span>
+                  <span className="text-sm font-medium text-green-700">
+                    Phone {maskPhone(phone)} verified!
+                  </span>
                 </div>
-              ) : otpSent ? (
+              ) : phoneOtpSent ? (
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    A 6-digit code has been sent to <strong className="text-foreground">{otpEmail || email}</strong>
+                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <Smartphone className="h-4 w-4" />
+                    A 6-digit code has been sent to <strong className="text-foreground">{maskPhone(phone)}</strong>
                   </p>
                   <Input
-                    value={otp}
-                    onChange={(e) => { setOtp(e.target.value); setOtpError("") }}
+                    value={phoneOtpCode}
+                    onChange={(e) => { setPhoneOtpCode(e.target.value); setPhoneOtpError("") }}
                     placeholder="000000"
                     maxLength={6}
                     className="text-center text-2xl tracking-[0.5em] font-mono h-14 rounded-xl"
                   />
-                  {otpError && (
-                    <p className="text-sm text-destructive">{otpError}</p>
+                  {phoneOtpError && (
+                    <p className="text-sm text-destructive">{phoneOtpError}</p>
                   )}
                   <div className="flex gap-3">
                     <Button
@@ -1034,15 +1053,15 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                     <Button
                       type="button"
                       className="flex-1 h-12 rounded-xl"
-                      onClick={handleVerifyOtp}
-                      disabled={loading || otp.length !== 6}
+                      onClick={handleVerifyPhoneOtp}
+                      disabled={loading || phoneOtpCode.length !== 6}
                     >
                       {loading ? "Verifying..." : "Verify & Place Order"}
                     </Button>
                   </div>
                   <button
                     type="button"
-                    onClick={handleSendOtp}
+                    onClick={handleSendPhoneOtp}
                     className="text-sm text-primary hover:underline"
                     disabled={loading}
                   >
@@ -1051,13 +1070,14 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    We&apos;ll send a verification code to <strong className="text-foreground">{email}</strong>
+                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <Smartphone className="h-4 w-4" />
+                    We&apos;ll send a verification code to <strong className="text-foreground">{maskPhone(phone)}</strong>
                   </p>
                   <Button
                     size="lg"
                     className="w-full h-12 md:h-14 rounded-xl text-base font-medium"
-                    onClick={handleSendOtp}
+                    onClick={handleSendPhoneOtp}
                     disabled={loading}
                   >
                     {loading ? "Sending OTP..." : "Send Verification Code"}

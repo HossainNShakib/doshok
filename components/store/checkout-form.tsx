@@ -14,11 +14,13 @@ import { getCart, clearCart } from "@/lib/cart"
 import type { CartItem, DeliveryZone } from "@/types"
 import { DELIVERY_ZONE_NAMES } from "@/types"
 import {
-  CheckCircle, Shield, Tag, Truck, CreditCard, ArrowLeft, ChevronLeft, ChevronRight,
+  CheckCircle, Shield, Tag, Truck, CreditCard, ArrowLeft, ChevronLeft, ChevronRight, Smartphone,
 } from "lucide-react"
 import Link from "next/link"
 import { maskEmail, maskPhone, formatRelativeTime } from "@/lib/checkout-draft"
 import { useCheckoutDraft } from "@/hooks/use-checkout-draft"
+import { sendPhoneOtp, confirmOtpAndGetIdToken } from "@/lib/firebase-client"
+import type { ConfirmationResult } from "@/lib/firebase-client"
 
 type PaymentMethodSetting = {
   provider: string
@@ -42,7 +44,7 @@ const STEPS = [
   { index: 0, label: "Contact", description: "Who & where to reach" },
   { index: 1, label: "Delivery", description: "Delivery address & zone" },
   { index: 2, label: "Offer & Payment", description: "Coupon & payment method" },
-  { index: 3, label: "Verification", description: "Verify your email" },
+  { index: 3, label: "Verification", description: "Verify your phone" },
   { index: 4, label: "Confirm", description: "Review & place order" },
 ]
 
@@ -70,11 +72,14 @@ export function CheckoutForm() {
   const [couponError, setCouponError] = useState("")
   const [couponLoading, setCouponLoading] = useState(false)
 
-  const [otpCode, setOtpCode] = useState("")
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpVerified, setOtpVerified] = useState(false)
-  const [otpLoading, setOtpLoading] = useState(false)
-  const [otpError, setOtpError] = useState("")
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false)
+  const [phoneOtpCode, setPhoneOtpCode] = useState("")
+  const [phoneOtpVerified, setPhoneOtpVerified] = useState(false)
+  const [phoneOtpLoading, setPhoneOtpLoading] = useState(false)
+  const [phoneOtpError, setPhoneOtpError] = useState("")
+  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState("")
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
 
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const formRef = useRef<HTMLDivElement>(null)
@@ -194,14 +199,14 @@ export function CheckoutForm() {
         break
       }
       case 3: {
-        if (!otpVerified) {
-          errors.push("Please verify your email before placing the order")
+        if (!phoneOtpVerified) {
+          errors.push("Please verify your phone before placing the order")
         }
         break
       }
     }
     return errors
-  }, [step, draft, couponCode, couponApplied, otpVerified])
+  }, [step, draft, couponCode, couponApplied, phoneOtpVerified])
 
   const handleNext = useCallback(() => {
     const errors = validateCurrentStep()
@@ -263,68 +268,85 @@ export function CheckoutForm() {
     updateField("couponCode", "")
   }
 
-  async function handleSendOtp() {
-    const email = draft.email
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error("Please enter a valid email address")
+  async function handleSendPhoneOtp() {
+    const phone = draft.phone
+    if (!phone || phone.length < 11) {
+      toast.error("Please enter a valid phone number")
       return
     }
-    setOtpLoading(true)
-    setOtpError("")
+    setPhoneOtpLoading(true)
+    setPhoneOtpError("")
     try {
-      const res = await fetch("/api/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-      const d = await res.json()
-      if (d.success) {
-        setOtpSent(true)
-        toast.success("Verification code sent to your email")
-      } else {
-        setOtpError(d.error ?? "Failed to send OTP")
-        toast.error(d.error ?? "Failed to send OTP")
+      const result = await sendPhoneOtp(phone, "recaptcha-container")
+      if (!result) {
+        setPhoneOtpError("Phone verification is not configured. Please contact support.")
+        toast.error("Phone verification unavailable")
+        return
       }
-    } catch {
-      setOtpError("Something went wrong")
-      toast.error("Something went wrong")
+      setConfirmationResult(result)
+      setPhoneOtpSent(true)
+      toast.success("Verification code sent to your phone")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to send code"
+      setPhoneOtpError(message)
+      toast.error(message)
     } finally {
-      setOtpLoading(false)
+      setPhoneOtpLoading(false)
     }
   }
 
-  async function handleVerifyOtp() {
-    if (!otpCode || otpCode.length !== 6) {
+  async function handleVerifyPhoneOtp() {
+    if (!phoneOtpCode || phoneOtpCode.length !== 6) {
       toast.error("Please enter the 6-digit code")
       return
     }
-    setOtpLoading(true)
-    setOtpError("")
+    if (!confirmationResult) {
+      toast.error("Please request a code first")
+      return
+    }
+    setPhoneOtpLoading(true)
+    setPhoneOtpError("")
     try {
-      const res = await fetch("/api/otp/verify", {
+      const idTokenResult = await confirmOtpAndGetIdToken(confirmationResult, phoneOtpCode)
+      if (!idTokenResult) {
+        setPhoneOtpError("Invalid code. Please try again.")
+        toast.error("Invalid code")
+        return
+      }
+
+      const res = await fetch("/api/otp/verify-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: draft.email, code: otpCode }),
+        body: JSON.stringify({ firebaseIdToken: idTokenResult.idToken, phone: draft.phone }),
       })
       const d = await res.json()
       if (d.success) {
-        setOtpVerified(true)
-        toast.success("Email verified!")
+        setPhoneVerifiedToken(d.data.phoneVerifiedToken)
+        setPhoneOtpVerified(true)
+        toast.success("Phone verified!")
       } else {
-        setOtpError(d.error ?? "Invalid code")
-        toast.error(d.error ?? "Invalid code")
+        setPhoneOtpError(d.error ?? "Verification failed")
+        toast.error(d.error ?? "Verification failed")
       }
     } catch {
-      setOtpError("Something went wrong")
+      setPhoneOtpError("Something went wrong")
       toast.error("Something went wrong")
     } finally {
-      setOtpLoading(false)
+      setPhoneOtpLoading(false)
     }
   }
 
+  function handleResendPhoneOtp() {
+    setConfirmationResult(null)
+    setPhoneOtpSent(false)
+    setPhoneOtpCode("")
+    setPhoneOtpError("")
+    setTimeout(() => handleSendPhoneOtp(), 300)
+  }
+
   async function handlePlaceOrder() {
-    if (!otpVerified) {
-      toast.error("Please verify your email before placing the order")
+    if (!phoneOtpVerified || !phoneVerifiedToken) {
+      toast.error("Please verify your phone before placing the order")
       return
     }
     if (!draft.phone || draft.phone.length < 11) {
@@ -349,6 +371,7 @@ export function CheckoutForm() {
           deliveryZone,
           paymentMethod,
           couponCode: couponApplied ? couponCode : undefined,
+          phoneVerifiedToken,
           items: items.map((item) => ({
             productId: item.productId,
             variantId: item.variantId,
@@ -428,10 +451,12 @@ export function CheckoutForm() {
                       setCouponError("")
                       setDeliveryZone("dhaka")
                       setPaymentMethod("cod")
-                      setOtpCode("")
-                      setOtpSent(false)
-                      setOtpVerified(false)
-                      setOtpError("")
+                      setPhoneOtpSent(false)
+                      setPhoneOtpCode("")
+                      setPhoneOtpVerified(false)
+                      setPhoneOtpError("")
+                      setPhoneVerifiedToken("")
+                      setConfirmationResult(null)
                       setValidationErrors([])
                     }}
                     className="inline-flex h-9 items-center justify-center rounded-xl border border-input bg-background px-5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -511,10 +536,10 @@ export function CheckoutForm() {
               <CardContent className="p-6 md:p-8 space-y-6">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">1</span>
-                  <div>
-                    <h2 className="text-lg font-semibold">Contact Information</h2>
-                    <p className="text-xs text-muted-foreground">We&apos;ll use this to confirm your order</p>
-                  </div>
+                    <div>
+                      <h2 className="text-lg font-semibold">Contact Information</h2>
+                      <p className="text-xs text-muted-foreground">We&apos;ll send OTP to your phone</p>
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2 sm:col-span-2">
@@ -535,7 +560,6 @@ export function CheckoutForm() {
                       value={draft.email}
                       onChange={(e) => updateField("email", e.target.value)}
                       placeholder="john@example.com"
-                      disabled={otpVerified}
                       className="h-11 rounded-xl"
                     />
                   </div>
@@ -547,6 +571,7 @@ export function CheckoutForm() {
                       value={draft.phone}
                       onChange={(e) => updateField("phone", e.target.value)}
                       placeholder="01XXXXXXXXX"
+                      disabled={phoneOtpVerified}
                       className="h-11 rounded-xl"
                     />
                   </div>
@@ -781,62 +806,68 @@ export function CheckoutForm() {
                 <div className="flex items-center gap-3">
                   <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">5</span>
                   <div>
-                    <h2 className="text-lg font-semibold">Email Verification</h2>
-                    <p className="text-xs text-muted-foreground">Verify your email to place the order</p>
+                    <h2 className="text-lg font-semibold">Phone Verification</h2>
+                    <p className="text-xs text-muted-foreground">Verify your phone to place the order</p>
                   </div>
                 </div>
 
-                {otpVerified ? (
+                <div id="recaptcha-container" ref={recaptchaContainerRef} />
+
+                {phoneOtpVerified ? (
                   <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
                     <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                    <span className="text-sm font-medium text-green-700">Email verified successfully</span>
+                    <span className="text-sm font-medium text-green-700">
+                      Phone <strong>{maskPhone(draft.phone)}</strong> verified successfully
+                    </span>
                   </div>
-                ) : otpSent ? (
+                ) : phoneOtpSent ? (
                   <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      A 6-digit code has been sent to <strong className="text-foreground">{draft.email}</strong>
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      A 6-digit code has been sent to <strong className="text-foreground">{maskPhone(draft.phone)}</strong>
                     </p>
                     <div className="flex gap-3">
                       <Input
-                        value={otpCode}
-                        onChange={(e) => { setOtpCode(e.target.value); setOtpError("") }}
+                        value={phoneOtpCode}
+                        onChange={(e) => { setPhoneOtpCode(e.target.value); setPhoneOtpError("") }}
                         placeholder="000000"
                         maxLength={6}
                         className="text-center text-lg tracking-[0.5em] w-40 font-mono h-12 rounded-xl"
                       />
                       <Button
                         type="button"
-                        onClick={handleVerifyOtp}
-                        disabled={otpLoading || otpCode.length !== 6}
+                        onClick={handleVerifyPhoneOtp}
+                        disabled={phoneOtpLoading || phoneOtpCode.length !== 6}
                         className="h-12 rounded-xl"
                       >
-                        {otpLoading ? "Verifying..." : "Verify"}
+                        {phoneOtpLoading ? "Verifying..." : "Verify"}
                       </Button>
                     </div>
-                    {otpError && (
-                      <p className="text-sm text-destructive">{otpError}</p>
+                    {phoneOtpError && (
+                      <p className="text-sm text-destructive">{phoneOtpError}</p>
                     )}
                     <button
                       type="button"
-                      onClick={handleSendOtp}
+                      onClick={handleResendPhoneOtp}
                       className="text-sm text-primary hover:underline"
-                      disabled={otpLoading}
+                      disabled={phoneOtpLoading}
                     >
                       Resend code
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      We&apos;ll send a verification code to <strong className="text-foreground">{draft.email}</strong>
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      We&apos;ll send a verification code to <strong className="text-foreground">{maskPhone(draft.phone)}</strong>
                     </p>
                     <Button
                       type="button"
-                      onClick={handleSendOtp}
-                      disabled={otpLoading || !draft.email}
+                      onClick={handleSendPhoneOtp}
+                      disabled={phoneOtpLoading || !draft.phone}
                       className="h-12 rounded-xl"
                     >
-                      {otpLoading ? "Sending..." : "Send Verification Code"}
+                      {phoneOtpLoading ? "Sending..." : "Send Verification Code"}
                     </Button>
                   </div>
                 )}
