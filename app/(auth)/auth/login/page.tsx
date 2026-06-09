@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "sonner"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react"
 
 function LoginForm() {
   const router = useRouter()
@@ -20,10 +20,14 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    if (searchParams.get("reset") === "success") {
+      setResetSuccess(true)
+    }
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -84,6 +88,15 @@ function LoginForm() {
           </p>
         </div>
 
+        {resetSuccess && (
+          <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-green-800">
+              Password reset successfully. You can now sign in with your new password.
+            </p>
+          </div>
+        )}
+
         <Card className="border-border/50 rounded-2xl shadow-sm">
           <CardContent className="p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -103,6 +116,12 @@ function LoginForm() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
                 <div className="relative">
                   <Input
