@@ -2,6 +2,8 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { success, error } from "@/lib/api-response"
+import { sendOrderStatusEmail } from "@/lib/mailer"
+import { ORDER_STATUSES } from "@/types"
 
 export async function GET(
   request: NextRequest,
@@ -43,13 +45,64 @@ export async function PATCH(
     for (const key of allowed) {
       if (key in body) filtered[key] = body[key]
     }
+
+    const currentOrder = await prisma.order.findUnique({ where: { id } })
+    if (!currentOrder) return error("Order not found", 404)
+
+    if (filtered.orderStatus && !ORDER_STATUSES.includes(filtered.orderStatus as any)) {
+      return error("Invalid order status")
+    }
+
+    const shipmentSyncMap: Record<string, string> = {
+      shipped: "DISPATCHED",
+      delivered: "DELIVERED",
+      cancelled: "CANCELLED",
+      returned: "RETURNED",
+    }
+
+    if (filtered.orderStatus && shipmentSyncMap[filtered.orderStatus as string]) {
+      const shipmentStatus = shipmentSyncMap[filtered.orderStatus as string]
+      await prisma.orderShipment.upsert({
+        where: { orderId: id },
+        create: { orderId: id, status: shipmentStatus },
+        update: { status: shipmentStatus },
+      })
+    }
+
     const order = await prisma.order.update({
       where: { id },
       data: filtered,
       include: { items: true, address: true },
     })
+
+    if (
+      filtered.orderStatus &&
+      filtered.orderStatus !== currentOrder.orderStatus
+    ) {
+      const emailData = {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        customerPhone: order.customerPhone,
+        total: order.total,
+        subtotal: order.subtotal,
+        deliveryFee: order.deliveryFee,
+        paymentMethod: order.paymentMethod,
+        orderStatus: order.orderStatus,
+        items: order.items.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+          size: i.size,
+          color: i.color,
+        })),
+      }
+      sendOrderStatusEmail(emailData, filtered.orderStatus as string).catch(() => {})
+    }
+
     return success(order)
-  } catch {
+  } catch (err) {
+    console.error(err)
     return error("Failed to update order")
   }
 }

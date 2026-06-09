@@ -192,6 +192,66 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
   }
 }
 
+export async function sendOrderStatusEmail(order: OrderData, newStatus: string): Promise<void> {
+  const supportedStatuses = ["confirmed", "processing", "shipped", "delivered", "cancelled", "returned"]
+  if (!supportedStatuses.includes(newStatus)) return
+
+  const statusSubjects: Record<string, string> = {
+    confirmed: `Order Confirmed — ${order.orderNumber}`,
+    processing: `Order Being Prepared — ${order.orderNumber}`,
+    shipped: `Order Shipped — ${order.orderNumber}`,
+    delivered: `Order Delivered — ${order.orderNumber}`,
+    cancelled: `Order Cancelled — ${order.orderNumber}`,
+    returned: `Order Returned — ${order.orderNumber}`,
+  }
+
+  const statusHeadlines: Record<string, string> = {
+    confirmed: "Your order has been confirmed!",
+    processing: "We're preparing your order.",
+    shipped: "Your order is on its way!",
+    delivered: "Your order has been delivered.",
+    cancelled: "Your order has been cancelled.",
+    returned: "Your order has been returned.",
+  }
+
+  try {
+    const resend = getResend()
+    if (!resend || !order.customerEmail) return
+
+    const itemsHtml = order.items
+      .map(
+        (item) =>
+          `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${item.name}${item.size ? ` (${item.size}${item.color ? ` / ${item.color}` : ""})` : ""}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">৳${(item.price * item.quantity).toLocaleString()}</td></tr>`
+      )
+      .join("")
+
+    await resend.emails.send({
+      from: fromEmail,
+      to: order.customerEmail,
+      subject: statusSubjects[newStatus] || `Order Update — ${order.orderNumber}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+          <h1 style="color:#111;margin-bottom:8px;">${statusHeadlines[newStatus] || `Order Update — ${order.orderNumber}`}</h1>
+          <p style="color:#555;margin-bottom:24px;">Dear ${order.customerName}, your order <strong>${order.orderNumber}</strong> has been updated.</p>
+          <p style="color:#111;margin-bottom:16px;"><strong>New Status:</strong> ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr><th style="padding:8px;border-bottom:2px solid #ddd;text-align:left;">Item</th><th style="padding:8px;border-bottom:2px solid #ddd;text-align:center;">Qty</th><th style="padding:8px;border-bottom:2px solid #ddd;text-align:right;">Price</th></tr></thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          <div style="margin-top:16px;border-top:2px solid #ddd;padding-top:12px;">
+            <p style="display:flex;justify-content:space-between;margin:4px 0;"><span>Subtotal</span><span>৳${order.subtotal.toLocaleString()}</span></p>
+            <p style="display:flex;justify-content:space-between;margin:4px 0;"><span>Delivery Fee</span><span>৳${order.deliveryFee.toLocaleString()}</span></p>
+            <p style="display:flex;justify-content:space-between;margin:4px 0;font-size:18px;font-weight:bold;"><span>Total</span><span>৳${order.total.toLocaleString()}</span></p>
+          </div>
+          <p style="color:#888;margin-top:24px;font-size:14px;">Track your order at ${appUrl}/track-order</p>
+        </div>
+      `,
+    })
+  } catch {
+    console.warn("[mailer] sendOrderStatusEmail skipped or failed")
+  }
+}
+
 export async function sendAdminNewOrderEmail(order: OrderData): Promise<void> {
   try {
     const resend = getResend()

@@ -73,6 +73,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   shipped: { label: "Shipped", variant: "default" },
   delivered: { label: "Delivered", variant: "outline" },
   cancelled: { label: "Cancelled", variant: "destructive" },
+  returned: { label: "Returned", variant: "destructive" },
 }
 
 export default function AccountOrderDetailPage() {

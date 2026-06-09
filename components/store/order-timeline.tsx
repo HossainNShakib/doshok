@@ -1,16 +1,38 @@
-const ORDER_STEPS = ["Pending", "Confirmed", "Processing", "Shipped", "Delivered"] as const
+import { ORDER_STATUS_FLOW, ORDER_STATUS_LABELS } from "@/types"
+import type { OrderStatus } from "@/types"
+
+const TERMINAL_STATUSES = ["cancelled", "returned"] as const
 
 export function OrderTimeline({ currentStatus }: { currentStatus: string }) {
-  const currentIndex = ORDER_STEPS.findIndex(
-    (s) => s.toLowerCase() === currentStatus.toLowerCase()
-  )
+  const normalized = currentStatus.toLowerCase() as OrderStatus
 
+  if (TERMINAL_STATUSES.includes(normalized as any)) {
+    return (
+      <div className="py-6">
+        <div className="flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 ring-2 ring-red-200">
+              <span className="text-base font-bold">✕</span>
+            </div>
+            <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-red-600">
+              {ORDER_STATUS_LABELS[normalized] || currentStatus}
+            </p>
+          </div>
+        </div>
+        <div className="relative mx-[calc(50%-20px)] mt-4 h-[2px] bg-muted">
+          <div className="h-[2px] bg-red-400" style={{ width: "100%" }} />
+        </div>
+      </div>
+    )
+  }
+
+  const currentIndex = ORDER_STATUS_FLOW.findIndex((s) => s === normalized)
   if (currentIndex === -1) return null
 
   return (
     <div className="py-6">
       <div className="flex items-start justify-between">
-        {ORDER_STEPS.map((step, i) => {
+        {ORDER_STATUS_FLOW.map((step, i) => {
           const done = i <= currentIndex
           const isCurrent = i === currentIndex
           return (
@@ -25,7 +47,7 @@ export function OrderTimeline({ currentStatus }: { currentStatus: string }) {
               <p className={`mt-2 text-[10px] font-semibold uppercase tracking-wider text-center leading-tight ${
                 done ? "text-foreground" : "text-muted-foreground/60"
               }`}>
-                {step}
+                {ORDER_STATUS_LABELS[step]}
               </p>
             </div>
           )
@@ -35,7 +57,7 @@ export function OrderTimeline({ currentStatus }: { currentStatus: string }) {
         <div className="h-[2px] bg-muted" />
         <div
           className="h-[2px] bg-primary transition-all duration-700"
-          style={{ width: `${(currentIndex / (ORDER_STEPS.length - 1)) * 100}%` }}
+          style={{ width: `${(currentIndex / (ORDER_STATUS_FLOW.length - 1)) * 100}%` }}
         />
       </div>
     </div>

@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { ProductCard } from "@/components/store/product-card"
 import { trackRecentlyViewed, RecentlyViewed } from "@/components/store/recently-viewed"
 import { toast } from "sonner"
-import { addToCart } from "@/lib/cart"
+import { addToCart, validateStock } from "@/lib/cart"
 import { cn } from "@/lib/utils"
+import { LOW_STOCK_THRESHOLD } from "@/types"
 import {
   Check,
   ChevronRight,
@@ -93,7 +94,7 @@ export function ProductDetailClient({
   const totalStock = product.variants.reduce((sum, variant) => sum + variant.stock, 0)
   const isSoldOut = totalStock === 0
   const selectedStock = selectedVariant?.stock ?? totalStock
-  const isLowStock = selectedStock > 0 && selectedStock <= 5
+  const isLowStock = selectedStock > 0 && selectedStock <= LOW_STOCK_THRESHOLD
   const discountPercent = product.oldPrice && product.oldPrice > product.price
     ? Math.round((1 - product.price / product.oldPrice) * 100)
     : 0
@@ -101,7 +102,7 @@ export function ProductDetailClient({
   const bundleTotal = bundleProducts.reduce((sum, item) => sum + item.price, 0)
   const bundleOldTotal = bundleProducts.reduce((sum, item) => sum + (item.oldPrice ?? item.price), 0)
 
-  function handleAddToCart() {
+  async function handleAddToCart() {
     if (!selectedSize || !selectedColor) {
       toast.error("Please select size and color")
       return
@@ -110,6 +111,18 @@ export function ProductDetailClient({
       toast.error("This variant is out of stock")
       return
     }
+
+    const result = await validateStock(product.id, selectedVariant?.id, quantity)
+    if (!result.ok) {
+      toast.error(result.error)
+      return
+    }
+
+    const actualQty = result.capped
+    if (result.cappedMessage) {
+      toast.warning(result.cappedMessage)
+    }
+
     addToCart({
       productId: product.id,
       variantId: selectedVariant?.id,
@@ -118,16 +131,16 @@ export function ProductDetailClient({
       size: selectedSize,
       color: selectedColor,
       image: product.images[0],
-      quantity,
+      quantity: actualQty,
       slug: product.slug,
     })
     window.dispatchEvent(new Event("cart-update"))
     setAddedToCart(true)
-    toast.success("Added to cart")
+    toast.success(actualQty < quantity ? `Added ${actualQty} to cart` : "Added to cart")
     setTimeout(() => setAddedToCart(false), 2000)
   }
 
-  function handleBuyNow() {
+  async function handleBuyNow() {
     if (!selectedSize || !selectedColor) {
       toast.error("Please select size and color")
       return
@@ -136,10 +149,17 @@ export function ProductDetailClient({
       toast.error("This variant is out of stock")
       return
     }
+
+    const result = await validateStock(product.id, selectedVariant?.id, quantity)
+    if (!result.ok) {
+      toast.error(result.error)
+      return
+    }
+
     const params = new URLSearchParams({
       productId: product.id,
       variantId: selectedVariant?.id ?? "",
-      quantity: String(quantity),
+      quantity: String(result.capped),
       price: String(product.price),
       slug: product.slug,
       size: selectedSize,
@@ -359,8 +379,8 @@ export function ProductDetailClient({
                 {quantity}
               </span>
               <button
-                onClick={() => setQuantity(quantity + 1)}
-                disabled={isSoldOut}
+                onClick={() => setQuantity(Math.min(quantity + 1, selectedStock))}
+                disabled={isSoldOut || quantity >= selectedStock}
                 className="h-10 w-11 text-lg font-bold transition-colors hover:bg-muted disabled:opacity-40"
               >
                 +

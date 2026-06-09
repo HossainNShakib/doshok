@@ -6,15 +6,25 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Trash2, ShoppingBag, ArrowLeft, Minus, Plus, Package, ShieldCheck } from "lucide-react"
-import { getCart, updateCartQuantity, removeFromCart } from "@/lib/cart"
+import { getCart, updateCartQuantity, removeFromCart, validateStock } from "@/lib/cart"
 import type { CartItem } from "@/types"
 
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([])
+  const [stockMap, setStockMap] = useState<Record<string, number>>({})
 
-  function refresh() {
+  async function refresh() {
     const cart = getCart()
     setItems([...cart])
+
+    const newStockMap: Record<string, number> = {}
+    const queries = cart.map(async (item) => {
+      const result = await validateStock(item.productId, item.variantId, 1)
+      const key = `${item.productId}::${item.variantId ?? ""}`
+      newStockMap[key] = result.ok ? result.available : 0
+    })
+    await Promise.all(queries)
+    setStockMap(newStockMap)
   }
 
   useEffect(() => {
@@ -112,9 +122,12 @@ export default function CartPage() {
                       </button>
                       <span className="flex h-9 w-10 items-center justify-center border-x border-input text-sm font-bold tabular-nums">{item.quantity}</span>
                       <button
-                        className="h-9 w-10 flex items-center justify-center hover:bg-muted transition-colors active:bg-muted/80"
-                        onClick={() => {
-                          updateCartQuantity(item.productId, item.variantId, item.quantity + 1)
+                        className="h-9 w-10 flex items-center justify-center hover:bg-muted transition-colors active:bg-muted/80 disabled:opacity-40"
+                        onClick={async () => {
+                          const key = `${item.productId}::${item.variantId ?? ""}`
+                          const maxStock = stockMap[key] ?? 1
+                          const newQty = Math.min(item.quantity + 1, maxStock)
+                          updateCartQuantity(item.productId, item.variantId, newQty)
                           refresh()
                         }}
                       >

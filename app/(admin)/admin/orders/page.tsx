@@ -7,9 +7,11 @@ import { AdminEmptyState, AdminPageHeader, AdminStatusBadge, AdminTableShell } f
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   pending: "secondary",
   confirmed: "default",
+  processing: "default",
   shipped: "default",
   delivered: "outline",
   cancelled: "destructive",
+  returned: "destructive",
 }
 
 export default async function AdminOrdersPage() {

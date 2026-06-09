@@ -43,10 +43,11 @@ export default async function ProductDetailPage({
 
   if (!product) notFound()
 
-  const relatedProducts = await prisma.product.findMany({
+  const sameCategoryProducts = await prisma.product.findMany({
     where: {
       status: "Active",
       id: { not: product.id },
+      categoryId: product.categoryId,
     },
     include: { variants: true, category: true },
     orderBy: [
@@ -55,6 +56,19 @@ export default async function ProductDetailPage({
     ],
     take: 8,
   })
+
+    const relatedProducts =
+      sameCategoryProducts.length >= 4
+        ? sameCategoryProducts.slice(0, 8)
+        : await prisma.product.findMany({
+            where: {
+              status: "Active",
+              id: { not: product.id },
+            },
+            include: { variants: true, category: true },
+            orderBy: { createdAt: "desc" },
+            take: 8,
+          })
 
   return (
     <div className="bg-[#eef2f5]">

@@ -2,6 +2,37 @@ import type { CartItem } from "@/types"
 
 const CART_KEY = "doshok_cart"
 
+export type StockValidationResult =
+  | { ok: true; available: number; capped: number; cappedMessage: string | null }
+  | { ok: false; error: string }
+
+export async function validateStock(
+  productId: string,
+  variantId: string | undefined,
+  requestedQty: number
+): Promise<StockValidationResult> {
+  try {
+    const params = new URLSearchParams({ productId, quantity: String(requestedQty) })
+    if (variantId) params.set("variantId", variantId)
+
+    const res = await fetch(`/api/stock?${params.toString()}`)
+    const data = await res.json()
+
+    if (!data.success) {
+      return { ok: false, error: data.error ?? "Stock check failed" }
+    }
+
+    return {
+      ok: true,
+      available: data.data.available,
+      capped: data.data.capped,
+      cappedMessage: data.data.cappedMessage,
+    }
+  } catch {
+    return { ok: false, error: "Could not verify stock" }
+  }
+}
+
 export function getCart(): CartItem[] {
   if (typeof window === "undefined") return []
   try {

@@ -66,9 +66,11 @@ const SHIPMENT_STATUS_NAMES: Record<string, string> = {
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   pending: "secondary",
   confirmed: "default",
+  processing: "default",
   shipped: "default",
   delivered: "outline",
   cancelled: "destructive",
+  returned: "destructive",
 }
 
 export default function TrackOrderPage() {
@@ -105,12 +107,39 @@ export default function TrackOrderPage() {
   }
 
 const ORDER_STEPS = ["Pending", "Confirmed", "Processing", "Shipped", "Delivered"] as const
+const TERMINAL_STATUSES = ["cancelled", "returned"] as const
+const ORDER_STEP_LABELS: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+}
 
 function Timeline({ currentStatus }: { currentStatus: string }) {
-  const currentIndex = ORDER_STEPS.findIndex(
-    (s) => s.toLowerCase() === currentStatus.toLowerCase()
-  )
+  const normalized = currentStatus.toLowerCase()
 
+  if (TERMINAL_STATUSES.includes(normalized as any)) {
+    return (
+      <div className="py-6">
+        <div className="flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 ring-2 ring-red-200">
+              <span className="text-base font-bold">✕</span>
+            </div>
+            <p className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-red-600">
+              {ORDER_STEP_LABELS[normalized] || currentStatus}
+            </p>
+          </div>
+        </div>
+        <div className="relative mx-[calc(50%-20px)] mt-4 h-[2px] bg-muted">
+          <div className="h-[2px] bg-red-400" style={{ width: "100%" }} />
+        </div>
+      </div>
+    )
+  }
+
+  const currentIndex = ORDER_STEPS.findIndex((s) => s.toLowerCase() === normalized)
   if (currentIndex === -1) return null
 
   return (
@@ -131,7 +160,7 @@ function Timeline({ currentStatus }: { currentStatus: string }) {
               <p className={`mt-2 text-[10px] font-semibold uppercase tracking-wider text-center leading-tight ${
                 done ? "text-foreground" : "text-muted-foreground/60"
               }`}>
-                {step}
+                {ORDER_STEP_LABELS[step.toLowerCase()] || step}
               </p>
             </div>
           )

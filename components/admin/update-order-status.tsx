@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+import { ORDER_STATUSES, ORDER_STATUS_LABELS } from "@/types"
 
-const ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"]
 const PAYMENT_STATUSES = ["unpaid", "paid", "refunded"]
 
 type Props = {
@@ -52,7 +52,7 @@ export function UpdateOrderStatus({ orderId, currentOrderStatus, currentPaymentS
             <SelectContent>
               {ORDER_STATUSES.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {ORDER_STATUS_LABELS[s]}
                 </SelectItem>
               ))}
             </SelectContent>

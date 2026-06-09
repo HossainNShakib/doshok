@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "@/components/admin/admin-ui"
 import { ImageUploader } from "@/components/admin/image-uploader"
 import { AlertTriangle, Archive, ExternalLink, EyeOff, Layers, Save, SendHorizonal } from "lucide-react"
+import { LOW_STOCK_THRESHOLD } from "@/types"
 
 type VariantInput = {
   size: string
@@ -84,7 +85,7 @@ export default function EditProductPage() {
 
   const totalVariants = variants.filter((v) => v.size && v.color).length
   const totalStock = variants.reduce((s, v) => s + v.stock, 0)
-  const lowStockVariants = variants.filter((v) => v.stock > 0 && v.stock <= 5).length
+  const lowStockVariants = variants.filter((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD).length
   const noImages = productImages.length === 0
   const noCategory = !categoryId
   const noVariants = totalVariants === 0

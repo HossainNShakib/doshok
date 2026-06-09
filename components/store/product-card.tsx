@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Heart, PackageCheck, Star } from "lucide-react"
+import { LOW_STOCK_THRESHOLD } from "@/types"
 
 type ProductCardProps = {
   product: {
@@ -19,7 +20,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0)
   const image = product.images[0]
   const isSoldOut = totalStock === 0
-  const isLowStock = !isSoldOut && totalStock <= 5
+  const isLowStock = !isSoldOut && totalStock > 0 && totalStock <= LOW_STOCK_THRESHOLD
   const hasDiscount = Boolean(product.oldPrice && product.oldPrice > product.price)
   const discountPercent = hasDiscount && product.oldPrice
     ? Math.round((1 - product.price / product.oldPrice) * 100)
