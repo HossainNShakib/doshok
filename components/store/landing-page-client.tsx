@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import type { DeliveryZone } from "@/types"
 import { DELIVERY_ZONE_NAMES } from "@/types"
-import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus } from "lucide-react"
+import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { createEmptyDraft, saveLandingDraft, loadLandingDraft, clearLandingDraft, clearBuyNowContext } from "@/lib/checkout-draft"
 
 type PaymentMethodSetting = {
   provider: string
@@ -56,61 +58,19 @@ const DELIVERY_FEES: Record<DeliveryZone, number> = {
   outside: 130,
 }
 
-function useSaveAbandoned(params: {
-  slug: string | null
-  productId: string
-  name: string
-  phone: string
-  step: string
-  variantId?: string
-  quantity: number
-  size: string
-  color: string
-  deliveryZone: string
-  address: string
-  couponCode?: string
-  subtotal: number
-  discount: number
-  total: number
-}) {
-  const { slug, productId, name, phone, step, variantId, quantity, size, color, deliveryZone, address, couponCode, subtotal, discount, total } = params
-  const saved = useRef(false)
-
-  useEffect(() => {
-    if (!phone || saved.current) return
-    const timer = setTimeout(() => {
-      fetch("/api/abandoned", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          landingSlug: slug,
-          productId,
-          variantId,
-          quantity,
-          size,
-          color,
-          deliveryZone,
-          address,
-          name,
-          phone,
-          step,
-          couponCode,
-          subtotal,
-          discount,
-          total,
-        }),
-      }).catch(() => {})
-      saved.current = true
-    }, 3000)
-    return () => clearTimeout(timer)
-  }, [phone, step])
-}
+const STEPS = [
+  { index: 0, label: "Select" },
+  { index: 1, label: "Contact" },
+  { index: 2, label: "Delivery" },
+  { index: 3, label: "Payment" },
+  { index: 4, label: "Verify" },
+]
 
 export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const [selectedSize, setSelectedSize] = useState("")
   const [selectedColor, setSelectedColor] = useState("")
   const [quantity, setQuantity] = useState(1)
-  const [step, setStep] = useState<"select" | "checkout" | "otp" | "done">("select")
+  const [step, setStep] = useState(0)
   const [deliveryZone, setDeliveryZone] = useState<DeliveryZone>("dhaka")
   const [paymentMethod, setPaymentMethod] = useState<string>("cod")
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSetting[]>([])
@@ -119,11 +79,71 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const [otp, setOtp] = useState("")
   const [loading, setLoading] = useState(false)
   const [otpEmail, setOtpEmail] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [otpError, setOtpError] = useState("")
   const [couponCode, setCouponCode] = useState("")
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponApplied, setCouponApplied] = useState(false)
   const [couponError, setCouponError] = useState("")
   const [couponLoading, setCouponLoading] = useState(false)
+  const [done, setDone] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+
+  // Form fields
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [division, setDivision] = useState("")
+  const [district, setDistrict] = useState("")
+  const [thana, setThana] = useState("")
+  const [fullAddress, setFullAddress] = useState("")
+  const [note, setNote] = useState("")
+
+  const restored = useRef(false)
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (restored.current) return
+    restored.current = true
+
+    const saved = loadLandingDraft(slug)
+    if (saved) {
+      if (saved.selectedSize) setSelectedSize(saved.selectedSize)
+      if (saved.selectedColor) setSelectedColor(saved.selectedColor)
+      if (saved.quantity) setQuantity(saved.quantity)
+      if (saved.name) setName(saved.name)
+      if (saved.email) setEmail(saved.email)
+      if (saved.phone) setPhone(saved.phone)
+      if (saved.division) setDivision(saved.division)
+      if (saved.district) setDistrict(saved.district)
+      if (saved.thana) setThana(saved.thana)
+      if (saved.fullAddress) setFullAddress(saved.fullAddress)
+      if (saved.note) setNote(saved.note)
+      if (saved.selectedDeliveryZone) setDeliveryZone(saved.selectedDeliveryZone as DeliveryZone)
+      if (saved.selectedPaymentMethod) setPaymentMethod(saved.selectedPaymentMethod)
+      if (saved.couponCode) setCouponCode(saved.couponCode)
+      if (saved.currentStep !== undefined) setStep(saved.currentStep)
+    }
+  }, [slug])
+
+  // Auto-save draft on field changes
+  const persistDraft = useCallback(() => {
+    saveLandingDraft(slug, {
+      selectedSize, selectedColor, quantity,
+      name, email, phone,
+      division, district, thana, fullAddress, note,
+      selectedDeliveryZone: deliveryZone,
+      selectedPaymentMethod: paymentMethod,
+      couponCode,
+      currentStep: step,
+    })
+  }, [slug, selectedSize, selectedColor, quantity, name, email, phone, division, district, thana, fullAddress, note, deliveryZone, paymentMethod, couponCode, step])
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(persistDraft, 500)
+  }, [persistDraft])
 
   const sizes = [...new Set(product.variants.map((v) => v.size))]
   const colors = [...new Set(product.variants.map((v) => v.color))]
@@ -135,33 +155,24 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const discount = couponDiscount
   const total = subtotal + deliveryFee - discount
 
-  useSaveAbandoned({
-    slug,
-    productId: product.id,
-    name: "",
-    phone,
-    step,
-    variantId: selectedVariant?.id,
-    quantity,
-    size: selectedSize,
-    color: selectedColor,
-    deliveryZone,
-    address: "",
-    couponCode: couponApplied ? couponCode : undefined,
-    subtotal,
-    discount,
-    total,
-  })
-
+  // Auto-apply coupon from URL or product default
   useEffect(() => {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
     const urlCoupon = params?.get("coupon")
     const code = urlCoupon || product.defaultCouponCode || ""
     if (code && !couponApplied) {
       setCouponCode(code)
-      handleApplyCouponExternal(code)
     }
   }, [])
+
+  // Auto-validate coupon
+  const autoValidated = useRef(false)
+  useEffect(() => {
+    if (couponCode && !couponApplied && !autoValidated.current) {
+      autoValidated.current = true
+      handleApplyCouponExternal(couponCode)
+    }
+  }, [couponCode])
 
   useEffect(() => {
     fetch("/api/payment-methods")
@@ -179,6 +190,54 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       .catch(() => {})
       .finally(() => setPaymentMethodsLoading(false))
   }, [])
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [])
+
+  const validateCurrentStep = useCallback((): string[] => {
+    const errors: string[] = []
+    switch (step) {
+      case 0:
+        if (!selectedSize) errors.push("Please select a size")
+        if (!selectedColor) errors.push("Please select a color")
+        break
+      case 1:
+        if (!name.trim()) errors.push("Full name is required")
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+          errors.push("Valid email is required")
+        if (!phone.trim() || phone.trim().length < 11)
+          errors.push("Valid phone number (11+ digits) is required")
+        break
+      case 2:
+        if (!division.trim()) errors.push("Division is required")
+        if (!district.trim()) errors.push("District is required")
+        if (!thana.trim()) errors.push("Thana is required")
+        if (!fullAddress.trim()) errors.push("Full address is required")
+        break
+      case 3:
+        if (couponCode.trim() && !couponApplied) {
+          errors.push("Apply or remove the coupon code before continuing")
+        }
+        break
+    }
+    return errors
+  }, [step, selectedSize, selectedColor, name, email, phone, division, district, thana, fullAddress, couponCode, couponApplied])
+
+  const handleNext = useCallback(() => {
+    const errors = validateCurrentStep()
+    setValidationErrors(errors)
+    if (errors.length === 0) {
+      setStep((s) => Math.min(s + 1, 4))
+      scrollToTop()
+    }
+  }, [validateCurrentStep, scrollToTop])
+
+  const handleBack = useCallback(() => {
+    setStep((s) => Math.max(s - 1, 0))
+    scrollToTop()
+    setValidationErrors([])
+  }, [scrollToTop])
 
   async function handleApplyCouponExternal(code: string) {
     if (!code.trim()) return
@@ -238,8 +297,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   }
 
   async function handleSendOtp() {
-    const emailValue = (document.getElementById("email") as HTMLInputElement)?.value
-    if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error("Please enter a valid email address")
       return
     }
@@ -247,17 +305,17 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       toast.error("Please enter a valid phone number")
       return
     }
-    setOtpEmail(emailValue)
+    setOtpEmail(email)
     setLoading(true)
     try {
       const res = await fetch("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailValue }),
+        body: JSON.stringify({ email }),
       })
       const data = await res.json()
       if (data.success) {
-        setStep("otp")
+        setOtpSent(true)
         toast.success("Verification code sent to your email")
       } else {
         toast.error(data.error ?? "Failed to send OTP")
@@ -287,6 +345,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       })
       const data = await res.json()
       if (data.success) {
+        setOtpVerified(true)
         await placeOrder()
       } else {
         toast.error(data.error ?? "Invalid code")
@@ -304,13 +363,14 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: (document.getElementById("name") as HTMLInputElement)?.value,
-          email: (document.getElementById("email") as HTMLInputElement)?.value,
+          name,
+          email,
           phone,
-          division: (document.getElementById("division") as HTMLInputElement)?.value,
-          district: (document.getElementById("district") as HTMLInputElement)?.value,
-          thana: (document.getElementById("thana") as HTMLInputElement)?.value,
-          fullAddress: (document.getElementById("address") as HTMLInputElement)?.value,
+          division,
+          district,
+          thana,
+          fullAddress,
+          note,
           deliveryZone,
           paymentMethod,
           couponCode: couponApplied ? couponCode : undefined,
@@ -326,12 +386,10 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       })
       const data = await res.json()
       if (data.success) {
-        if (paymentMethod === "bkash_partial" && data.data?.paymentUrl) {
-          window.location.href = data.data.paymentUrl
-        } else {
-          setStep("done")
-          toast.success("Order placed successfully!")
-        }
+        clearLandingDraft(slug)
+        clearBuyNowContext()
+        setDone(true)
+        toast.success("Order placed successfully!")
       } else {
         toast.error(data.error ?? "Order failed")
       }
@@ -340,7 +398,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
     }
   }
 
-  if (step === "done") {
+  if (done) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-muted/20 px-4">
         <div className="text-center max-w-md">
@@ -389,8 +447,39 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       </section>
 
       <div className="max-w-2xl mx-auto container-px py-8 md:py-12 space-y-8">
+        {/* Progress indicator */}
+        <div className="flex items-center justify-between max-w-lg mx-auto">
+          {STEPS.map((s, i) => (
+            <div key={s.index} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
+                    i < step
+                      ? "bg-primary text-primary-foreground"
+                      : i === step
+                        ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {i < step ? <CheckCircle className="h-3.5 w-3.5" /> : s.index + 1}
+                </div>
+                <span
+                  className={`text-[10px] mt-1 font-medium ${
+                    i === step ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div className={`h-px w-6 md:w-10 mx-1.5 ${i < step ? "bg-primary" : "bg-muted-foreground/20"}`} />
+              )}
+            </div>
+          ))}
+        </div>
+
         {/* Copy */}
-        {product.landingCopy && (
+        {product.landingCopy && step === 0 && (
           <section className="text-center bg-muted/20 rounded-2xl p-6 md:p-8">
             <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto text-sm">
               {product.landingCopy}
@@ -398,9 +487,21 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
           </section>
         )}
 
-        {/* Select Step */}
-        {step === "select" && (
-          <>
+        {/* Validation Errors */}
+        {validationErrors.length > 0 && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl px-5 py-4">
+            <p className="text-sm font-medium text-destructive mb-1">Please fix the following:</p>
+            <ul className="list-disc list-inside text-sm text-destructive/80 space-y-0.5">
+              {validationErrors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Step 0: Product Select */}
+        {step === 0 && (
+          <div className="space-y-6">
             <section className="space-y-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 1</p>
               <h2 className="text-lg font-semibold">Select Size</h2>
@@ -472,80 +573,154 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
               </div>
             </section>
 
-            <Button
-              size="lg"
-              className="w-full h-12 md:h-14 rounded-xl text-base font-medium"
-              disabled={!selectedSize || !selectedColor}
-              onClick={() => setStep("checkout")}
-            >
-              Order Now — ৳{product.price * quantity}
-            </Button>
-          </>
+            <div className="flex justify-end">
+              <Button onClick={handleNext} disabled={!selectedSize || !selectedColor} className="gap-1.5 h-11 rounded-xl px-6">
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         )}
 
-        {/* Checkout Step */}
-        {step === "checkout" && (
-          <>
-            <section className="bg-muted/20 rounded-2xl p-6 md:p-8 space-y-5">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 2</p>
-              <h2 className="text-lg font-semibold">Delivery Details</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" required className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" required className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="division">Division</Label>
-                  <Input id="division" required className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="district">District</Label>
-                  <Input id="district" required className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="thana">Thana</Label>
-                  <Input id="thana" required className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Delivery Zone</Label>
-                  <Select
-                    value={deliveryZone}
-                    onValueChange={(v) => setDeliveryZone(v as DeliveryZone)}
-                  >
-                    <SelectTrigger className="h-11 rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(DELIVERY_ZONE_NAMES).map(([key, name]) => (
-                        <SelectItem key={key} value={key}>
-                          {name} (৳{DELIVERY_FEES[key as DeliveryZone]})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        {/* Step 1: Contact */}
+        {step === 1 && (
+          <section className="bg-muted/20 rounded-2xl p-6 md:p-8 space-y-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 2</p>
+            <h2 className="text-lg font-semibold">Contact Information</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="h-11 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Full Address</Label>
-                <Input id="address" required className="h-11 rounded-xl" />
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  disabled={otpVerified}
+                  className="h-11 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
+                  type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  type="tel"
-                  required
+                  placeholder="01XXXXXXXXX"
                   className="h-11 rounded-xl"
                 />
               </div>
-            </section>
+            </div>
+            <div className="flex justify-between gap-4">
+              <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
+                <ChevronLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button type="button" onClick={handleNext} className="gap-1.5 h-11 rounded-xl px-6">
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </section>
+        )}
 
+        {/* Step 2: Delivery */}
+        {step === 2 && (
+          <section className="bg-muted/20 rounded-2xl p-6 md:p-8 space-y-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 3</p>
+            <h2 className="text-lg font-semibold">Delivery Address</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="division">Division</Label>
+                <Input
+                  id="division"
+                  value={division}
+                  onChange={(e) => setDivision(e.target.value)}
+                  placeholder="Chattogram"
+                  className="h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="district">District</Label>
+                <Input
+                  id="district"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  placeholder="Chattogram"
+                  className="h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="thana">Thana / Upazila</Label>
+                <Input
+                  id="thana"
+                  value={thana}
+                  onChange={(e) => setThana(e.target.value)}
+                  placeholder="Kotwali"
+                  className="h-11 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Delivery Zone</Label>
+                <Select
+                  value={deliveryZone}
+                  onValueChange={(v) => setDeliveryZone(v as DeliveryZone)}
+                >
+                  <SelectTrigger className="h-11 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(DELIVERY_ZONE_NAMES).map(([key, name]) => (
+                      <SelectItem key={key} value={key}>
+                        {name} (৳{DELIVERY_FEES[key as DeliveryZone]})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Full Address</Label>
+              <Input
+                id="address"
+                value={fullAddress}
+                onChange={(e) => setFullAddress(e.target.value)}
+                placeholder="House #, Road #, Area"
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="note">Order Note (optional)</Label>
+              <Input
+                id="note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Any special instructions?"
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="flex justify-between gap-4">
+              <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
+                <ChevronLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button type="button" onClick={handleNext} className="gap-1.5 h-11 rounded-xl px-6">
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {/* Step 3: Payment & Coupon */}
+        {step === 3 && (
+          <div className="space-y-6">
             {/* Coupon */}
             <section className="space-y-3">
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -673,53 +848,99 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                   <span>-৳{discount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-lg pt-3 border-t border-primary/10">
+              <Separator />
+              <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
                 <span>৳{total.toLocaleString()}</span>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Shield className="h-3.5 w-3.5" /> Secure checkout — Your information is safe
-              </p>
-              <Button
-                size="lg"
-                className="w-full h-12 md:h-14 rounded-xl text-base font-medium"
-                onClick={handleSendOtp}
-                disabled={loading}
-              >
-                {loading ? "Sending OTP..." : "Continue to Verification"}
+            <div className="flex justify-between gap-4">
+              <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
+                <ChevronLeft className="h-4 w-4" /> Back
+              </Button>
+              <Button type="button" onClick={handleNext} className="gap-1.5 h-11 rounded-xl px-6">
+                Next <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* OTP Step */}
-        {step === "otp" && (
+        {/* Step 4: Verification */}
+        {step === 4 && (
           <section className="space-y-6 max-w-sm mx-auto text-center">
-            <div className="bg-muted/20 rounded-2xl p-8">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2">Step 3</p>
-              <h2 className="text-xl font-semibold mb-2">Enter OTP</h2>
-              <p className="text-sm text-muted-foreground">
-                A 6-digit code has been sent to <strong className="text-foreground">{otpEmail || "your email"}</strong>
-              </p>
+            <div className="bg-muted/20 rounded-2xl p-8 space-y-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium">Step 5</p>
+              <h2 className="text-xl font-semibold">Email Verification</h2>
+
+              {otpVerified ? (
+                <div className="flex items-center justify-center gap-2 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
+                  <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                  <span className="text-sm font-medium text-green-700">Email verified!</span>
+                </div>
+              ) : otpSent ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    A 6-digit code has been sent to <strong className="text-foreground">{otpEmail || email}</strong>
+                  </p>
+                  <Input
+                    value={otp}
+                    onChange={(e) => { setOtp(e.target.value); setOtpError("") }}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="text-center text-2xl tracking-[0.5em] font-mono h-14 rounded-xl"
+                  />
+                  {otpError && (
+                    <p className="text-sm text-destructive">{otpError}</p>
+                  )}
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleBack}
+                      className="flex-1 h-12 rounded-xl"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                    </Button>
+                    <Button
+                      type="button"
+                      className="flex-1 h-12 rounded-xl"
+                      onClick={handleVerifyOtp}
+                      disabled={loading || otp.length !== 6}
+                    >
+                      {loading ? "Verifying..." : "Verify & Place Order"}
+                    </Button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    className="text-sm text-primary hover:underline"
+                    disabled={loading}
+                  >
+                    Resend code
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    We&apos;ll send a verification code to <strong className="text-foreground">{email}</strong>
+                  </p>
+                  <Button
+                    size="lg"
+                    className="w-full h-12 md:h-14 rounded-xl text-base font-medium"
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                  >
+                    {loading ? "Sending OTP..." : "Send Verification Code"}
+                  </Button>
+                  <div>
+                    <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
+                      <ChevronLeft className="h-4 w-4" /> Back
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-            <Input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="000000"
-              maxLength={6}
-              className="text-center text-2xl tracking-[0.5em] font-mono h-14 rounded-xl"
-            />
-            <Button
-              size="lg"
-              className="w-full h-12 md:h-14 rounded-xl text-base font-medium"
-              onClick={handleVerifyOtp}
-              disabled={loading}
-            >
-              {loading ? "Verifying..." : "Verify & Place Order"}
-            </Button>
           </section>
         )}
 

@@ -25,18 +25,17 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session?.user) return error("Unauthorized", 401)
-
   const { id } = await params
 
   try {
     const body = await request.json()
-    const allowed = ["contacted", "notes"]
+    const allowed = ["contacted", "notes", "landingSlug", "productId", "variantId", "quantity", "size", "color", "deliveryZone", "address", "name", "email", "phone", "step", "couponCode", "subtotal", "discount", "total", "data"]
+
     const filtered: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in body) filtered[key] = body[key]
     }
+
     const item = await prisma.abandonedCheckout.update({
       where: { id },
       data: filtered,

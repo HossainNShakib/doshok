@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,8 +13,11 @@ import { toast } from "sonner"
 import { getCart, clearCart } from "@/lib/cart"
 import type { CartItem, DeliveryZone } from "@/types"
 import { DELIVERY_ZONE_NAMES } from "@/types"
-import { CheckCircle, Shield, Tag, Truck, CreditCard, ArrowLeft } from "lucide-react"
+import {
+  CheckCircle, Shield, Tag, Truck, CreditCard, ArrowLeft, ChevronLeft, ChevronRight,
+} from "lucide-react"
 import Link from "next/link"
+import { useCheckoutDraft } from "@/hooks/use-checkout-draft"
 
 type PaymentMethodSetting = {
   provider: string
@@ -34,28 +37,24 @@ const DELIVERY_FEES: Record<string, number> = {
   outside: 130,
 }
 
-type FormData = {
-  name: string
-  email: string
-  phone: string
-  division: string
-  district: string
-  thana: string
-  fullAddress: string
-}
-
-type CouponState = {
-  code: string
-  discount: number
-  loading: boolean
-  applied: boolean
-  error: string
-}
+const STEPS = [
+  { index: 0, label: "Contact", description: "Who & where to reach" },
+  { index: 1, label: "Delivery", description: "Delivery address & zone" },
+  { index: 2, label: "Offer & Payment", description: "Coupon & payment method" },
+  { index: 3, label: "Verification", description: "Verify your email" },
+  { index: 4, label: "Confirm", description: "Review & place order" },
+]
 
 export function CheckoutForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isBuyNow = searchParams.has("productId")
+
+  const {
+    step, draft, restored, showRestoreNotice,
+    goNext, goBack, updateField, updateFields, resetDraft,
+    dismissRestoreNotice, isFirstStep, isLastStep,
+  } = useCheckoutDraft()
 
   const [items, setItems] = useState<(CartItem & { productName?: string })[]>([])
   const [deliveryZone, setDeliveryZone] = useState<DeliveryZone>("dhaka")
@@ -63,28 +62,43 @@ export function CheckoutForm() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSetting[]>([])
   const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [coupon, setCoupon] = useState<CouponState>({
-    code: searchParams.get("coupon") || "",
-    discount: 0,
-    loading: false,
-    applied: false,
-    error: "",
-  })
-  const [form, setForm] = useState<FormData>({
-    name: "",
-    email: "",
-    phone: "",
-    division: "",
-    district: "",
-    thana: "",
-    fullAddress: "",
-  })
+
+  const [couponCode, setCouponCode] = useState("")
+  const [couponDiscount, setCouponDiscount] = useState(0)
+  const [couponApplied, setCouponApplied] = useState(false)
+  const [couponError, setCouponError] = useState("")
+  const [couponLoading, setCouponLoading] = useState(false)
 
   const [otpCode, setOtpCode] = useState("")
   const [otpSent, setOtpSent] = useState(false)
   const [otpVerified, setOtpVerified] = useState(false)
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState("")
+
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const formRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const urlCoupon = searchParams.get("coupon")
+    if (urlCoupon) {
+      setCouponCode(urlCoupon)
+    }
+  }, [searchParams])
+
+  const autoValidatedRef = useRef(false)
+
+  useEffect(() => {
+    if (couponCode && !couponApplied) {
+      validateCoupon(couponCode)
+    }
+  }, [items])
+
+  useEffect(() => {
+    if (restored && couponCode && !couponApplied && !autoValidatedRef.current) {
+      autoValidatedRef.current = true
+      validateCoupon(couponCode)
+    }
+  }, [restored, couponCode])
 
   useEffect(() => {
     if (isBuyNow) {
@@ -125,10 +139,13 @@ export function CheckoutForm() {
   }, [isBuyNow, searchParams, router])
 
   useEffect(() => {
-    if (coupon.code && !coupon.applied) {
-      validateCoupon(coupon.code)
+    if (draft.phone) setCouponCode(draft.couponCode)
+    if (draft.selectedDeliveryZone) setDeliveryZone(draft.selectedDeliveryZone as DeliveryZone)
+    if (draft.selectedPaymentMethod) setPaymentMethod(draft.selectedPaymentMethod)
+    if (draft.couponCode && !couponApplied) {
+      setCouponCode(draft.couponCode)
     }
-  }, [items])
+  }, [restored])
 
   useEffect(() => {
     fetch("/api/payment-methods")
@@ -147,20 +164,68 @@ export function CheckoutForm() {
       .finally(() => setPaymentMethodsLoading(false))
   }, [])
 
-  function updateForm(field: keyof FormData, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
+  const scrollToTop = useCallback(() => {
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [])
+
+  const validateCurrentStep = useCallback((): string[] => {
+    const errors: string[] = []
+    switch (step) {
+      case 0: {
+        if (!draft.name.trim()) errors.push("Full name is required")
+        if (!draft.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email))
+          errors.push("Valid email is required")
+        if (!draft.phone.trim() || draft.phone.trim().length < 11)
+          errors.push("Valid phone number (11+ digits) is required")
+        break
+      }
+      case 1: {
+        if (!draft.division.trim()) errors.push("Division is required")
+        if (!draft.district.trim()) errors.push("District is required")
+        if (!draft.thana.trim()) errors.push("Thana is required")
+        if (!draft.fullAddress.trim()) errors.push("Full address is required")
+        break
+      }
+      case 2: {
+        if (couponCode.trim() && !couponApplied) {
+          errors.push("Apply or remove the coupon code before continuing")
+        }
+        break
+      }
+      case 3: {
+        if (!otpVerified) {
+          errors.push("Please verify your email before placing the order")
+        }
+        break
+      }
+    }
+    return errors
+  }, [step, draft, couponCode, couponApplied, otpVerified])
+
+  const handleNext = useCallback(() => {
+    const errors = validateCurrentStep()
+    setValidationErrors(errors)
+    if (errors.length === 0) {
+      goNext()
+      scrollToTop()
+    }
+  }, [validateCurrentStep, goNext, scrollToTop])
+
+  const handleBack = useCallback(() => {
+    goBack()
+    scrollToTop()
+    setValidationErrors([])
+  }, [goBack, scrollToTop])
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
   const deliveryFee = DELIVERY_FEES[deliveryZone]
-  const discount = coupon.discount
+  const discount = couponDiscount
   const total = subtotal + deliveryFee - discount
-
-  const canSendOtp = form.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) && !otpVerified
 
   async function validateCoupon(code: string) {
     if (!code.trim()) return
-    setCoupon((prev) => ({ ...prev, loading: true, error: "" }))
+    setCouponLoading(true)
+    setCouponError("")
     try {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
@@ -169,32 +234,37 @@ export function CheckoutForm() {
       })
       const d = await res.json()
       if (d.success) {
-        setCoupon((prev) => ({
-          ...prev,
-          code: code.trim().toUpperCase(),
-          discount: d.data.discount,
-          applied: true,
-          loading: false,
-          error: "",
-        }))
+        setCouponApplied(true)
+        setCouponDiscount(d.data.discount)
+        setCouponCode(code.trim().toUpperCase())
+        setCouponError("")
       } else {
-        setCoupon((prev) => ({ ...prev, discount: 0, applied: false, loading: false, error: d.error ?? "Invalid coupon" }))
+        setCouponApplied(false)
+        setCouponDiscount(0)
+        setCouponError(d.error ?? "Invalid coupon")
       }
     } catch {
-      setCoupon((prev) => ({ ...prev, discount: 0, applied: false, loading: false, error: "Failed to validate" }))
+      setCouponError("Failed to validate")
+    } finally {
+      setCouponLoading(false)
     }
   }
 
   function handleApplyCoupon() {
-    validateCoupon(coupon.code)
+    validateCoupon(couponCode)
   }
 
   function handleRemoveCoupon() {
-    setCoupon({ code: "", discount: 0, loading: false, applied: false, error: "" })
+    setCouponCode("")
+    setCouponDiscount(0)
+    setCouponApplied(false)
+    setCouponError("")
+    updateField("couponCode", "")
   }
 
   async function handleSendOtp() {
-    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    const email = draft.email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error("Please enter a valid email address")
       return
     }
@@ -204,7 +274,7 @@ export function CheckoutForm() {
       const res = await fetch("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email }),
+        body: JSON.stringify({ email }),
       })
       const d = await res.json()
       if (d.success) {
@@ -233,7 +303,7 @@ export function CheckoutForm() {
       const res = await fetch("/api/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, code: otpCode }),
+        body: JSON.stringify({ email: draft.email, code: otpCode }),
       })
       const d = await res.json()
       if (d.success) {
@@ -251,13 +321,12 @@ export function CheckoutForm() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function handlePlaceOrder() {
     if (!otpVerified) {
       toast.error("Please verify your email before placing the order")
       return
     }
-    if (!form.phone || form.phone.length < 11) {
+    if (!draft.phone || draft.phone.length < 11) {
       toast.error("Please enter a valid phone number")
       return
     }
@@ -268,10 +337,17 @@ export function CheckoutForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          name: draft.name,
+          email: draft.email,
+          phone: draft.phone,
+          division: draft.division,
+          district: draft.district,
+          thana: draft.thana,
+          fullAddress: draft.fullAddress,
+          note: draft.note,
           deliveryZone,
           paymentMethod,
-          couponCode: coupon.applied ? coupon.code : undefined,
+          couponCode: couponApplied ? couponCode : undefined,
           items: items.map((item) => ({
             productId: item.productId,
             variantId: item.variantId,
@@ -283,6 +359,7 @@ export function CheckoutForm() {
       const data = await res.json()
       if (data.success) {
         if (!isBuyNow) clearCart()
+        resetDraft()
         window.dispatchEvent(new Event("cart-update"))
         const orderNumber = data.data?.order?.orderNumber
         if (orderNumber) {
@@ -303,384 +380,562 @@ export function CheckoutForm() {
   if (items.length === 0) return null
 
   return (
-    <div className="container mx-auto container-px py-8 md:py-12 max-w-4xl">
-      <Link href="/cart" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors group mb-6">
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Cart
-      </Link>
+    <div className="container mx-auto container-px py-8 md:py-12 max-w-6xl" ref={formRef}>
+      {showRestoreNotice && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-amber-800">
+            <CheckCircle className="h-4 w-4 shrink-0" />
+            <span>We restored your previous checkout draft. Continue where you left off.</span>
+          </div>
+          <button
+            type="button"
+            onClick={dismissRestoreNotice}
+            className="text-xs text-amber-600 hover:text-amber-800 font-medium shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
+      {/* Progress indicator */}
       <div className="mb-8">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2 font-medium">Secure Checkout</p>
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">Checkout</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Step 1: Delivery Details */}
-        <Card className="overflow-hidden border-border/50 rounded-2xl shadow-sm">
-          <CardContent className="p-6 md:p-8 space-y-6">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">1</span>
-              <div>
-                <h2 className="text-lg font-semibold">Delivery Details</h2>
-                <p className="text-xs text-muted-foreground">Where should we send your order?</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={form.name}
-                  onChange={(e) => updateForm("name", e.target.value)}
-                  required
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => updateForm("email", e.target.value)}
-                  required
-                  disabled={otpVerified}
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => updateForm("phone", e.target.value)}
-                  required
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="division">Division</Label>
-                <Input
-                  id="division"
-                  value={form.division}
-                  onChange={(e) => updateForm("division", e.target.value)}
-                  required
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="district">District</Label>
-                <Input
-                  id="district"
-                  value={form.district}
-                  onChange={(e) => updateForm("district", e.target.value)}
-                  required
-                  className="h-11 rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="thana">Thana</Label>
-                <Input
-                  id="thana"
-                  value={form.thana}
-                  onChange={(e) => updateForm("thana", e.target.value)}
-                  required
-                  className="h-11 rounded-xl"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fullAddress">Full Address</Label>
-              <Input
-                id="fullAddress"
-                value={form.fullAddress}
-                onChange={(e) => updateForm("fullAddress", e.target.value)}
-                required
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Delivery Zone</Label>
-              <Select
-                value={deliveryZone}
-                onValueChange={(v) => setDeliveryZone(v as DeliveryZone)}
-              >
-                <SelectTrigger className="h-11 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(DELIVERY_ZONE_NAMES).map(([key, name]) => (
-                    <SelectItem key={key} value={key}>
-                      {name} (৳{DELIVERY_FEES[key]})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Items */}
-        <Card className="border-border/50 rounded-2xl shadow-sm">
-          <CardContent className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">2</span>
-              <div>
-                <h2 className="text-lg font-semibold">Items</h2>
-                <p className="text-xs text-muted-foreground">{items.length} item{items.length > 1 ? "s" : ""}</p>
-              </div>
-            </div>
-            <div className="divide-y divide-border/50">
-              {items.map((item, i) => (
-                <div key={i} className="flex justify-between py-3 text-sm first:pt-0 last:pb-0">
-                  <span className="text-muted-foreground">
-                    {item.name || "Product"}
-                    {item.size ? ` (${item.size}` : ""}{item.color ? ` / ${item.color}` : ""}{item.size ? ")" : ""}
-                    {" "}x{item.quantity}
-                  </span>
-                  <span className="font-medium">৳{(item.price * item.quantity).toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Step 3: Email Verification */}
-        <Card className="border-border/50 rounded-2xl shadow-sm">
-          <CardContent className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">3</span>
-              <div>
-                <h2 className="text-lg font-semibold">Email Verification</h2>
-                <p className="text-xs text-muted-foreground">Verify your email to place the order</p>
-              </div>
-            </div>
-
-            {otpVerified ? (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
-                <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                <span className="text-sm font-medium text-green-700">Email verified successfully</span>
-              </div>
-            ) : otpSent ? (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  A 6-digit code has been sent to <strong className="text-foreground">{form.email}</strong>
-                </p>
-                <div className="flex gap-3">
-                  <Input
-                    value={otpCode}
-                    onChange={(e) => { setOtpCode(e.target.value); setOtpError("") }}
-                    placeholder="000000"
-                    maxLength={6}
-                    className="text-center text-lg tracking-[0.5em] w-40 font-mono h-12 rounded-xl"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleVerifyOtp}
-                    disabled={otpLoading || otpCode.length !== 6}
-                    className="h-12 rounded-xl"
-                  >
-                    {otpLoading ? "Verifying..." : "Verify"}
-                  </Button>
-                </div>
-                {otpError && (
-                  <p className="text-sm text-destructive">{otpError}</p>
-                )}
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  className="text-sm text-primary hover:underline"
-                  disabled={otpLoading}
+      <div className="mb-8">
+        <div className="flex items-center justify-between max-w-3xl">
+          {STEPS.map((s, i) => (
+            <div key={s.index} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                    i < step
+                      ? "bg-primary text-primary-foreground"
+                      : i === step
+                        ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                        : "bg-muted text-muted-foreground"
+                  }`}
                 >
-                  Resend code
-                </button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleSendOtp}
-                disabled={otpLoading || !canSendOtp}
-                className="h-12 rounded-xl"
-              >
-                {otpLoading ? "Sending..." : "Send Verification Code"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Step 4: Coupon */}
-        <Card className="border-border/50 rounded-2xl shadow-sm">
-          <CardContent className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">4</span>
-              <div>
-                <h2 className="text-lg font-semibold">Coupon</h2>
-                <p className="text-xs text-muted-foreground">Have a discount code?</p>
-              </div>
-            </div>
-            {coupon.applied ? (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-5 py-4">
-                <div className="flex items-center gap-2">
-                  <Tag className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-700">{coupon.code}</span>
-                  <span className="text-sm text-green-600">(-৳{coupon.discount.toLocaleString()})</span>
+                  {i < step ? <CheckCircle className="h-4 w-4" /> : s.index + 1}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveCoupon}
-                  className="text-sm text-red-500 hover:text-red-700 font-medium"
+                <span
+                  className={`text-[10px] mt-1 font-medium hidden sm:block ${
+                    i === step ? "text-foreground" : "text-muted-foreground"
+                  }`}
                 >
-                  Remove
-                </button>
+                  {s.label}
+                </span>
               </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  value={coupon.code}
-                  onChange={(e) => setCoupon((prev) => ({ ...prev, code: e.target.value, error: "" }))}
-                  placeholder="Enter coupon code"
-                  className="flex-1 uppercase h-11 rounded-xl"
+              {i < STEPS.length - 1 && (
+                <div
+                  className={`h-px w-8 md:w-16 mx-2 ${
+                    i < step ? "bg-primary" : "bg-muted-foreground/20"
+                  }`}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleApplyCoupon}
-                  disabled={coupon.loading || !coupon.code.trim()}
-                  className="h-11 rounded-xl"
-                >
-                  {coupon.loading ? "..." : "Apply"}
-                </Button>
-              </div>
-            )}
-            {coupon.error && (
-              <p className="text-sm text-destructive">{coupon.error}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Step 5: Payment Method */}
-        <Card className="border-border/50 rounded-2xl shadow-sm">
-          <CardContent className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">5</span>
-              <div>
-                <h2 className="text-lg font-semibold">Payment Method</h2>
-                <p className="text-xs text-muted-foreground">Choose how to pay</p>
-              </div>
-            </div>
-            {paymentMethodsLoading ? (
-              <p className="text-sm text-muted-foreground animate-pulse">Loading payment options...</p>
-            ) : paymentMethods.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No payment methods available.</p>
-            ) : (
-              <RadioGroup
-                value={paymentMethod}
-                onValueChange={(v) => setPaymentMethod(v)}
-                className="space-y-3"
-              >
-                {paymentMethods.map((pm) => {
-                  const isOnline = ONLINE_PROVIDERS.includes(pm.provider)
-                  const isCod = pm.provider === "COD"
-                  return (
-                    <div
-                      key={pm.provider}
-                      className={`flex items-start gap-4 rounded-xl border p-4 transition-all ${
-                        isOnline
-                          ? "opacity-60 border-dashed bg-muted/20"
-                          : paymentMethod === pm.provider.toLowerCase()
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-muted-foreground/30"
-                      }`}
-                    >
-                      <RadioGroupItem
-                        value={pm.provider.toLowerCase()}
-                        id={pm.provider}
-                        disabled={isOnline}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <Label
-                          htmlFor={pm.provider}
-                          className={`font-medium text-sm ${
-                            isOnline
-                              ? "text-muted-foreground cursor-not-allowed"
-                              : "cursor-pointer"
-                          }`}
-                        >
-                          {pm.displayName}
-                          {isOnline && (
-                            <span className="ml-2 text-xs text-muted-foreground italic">
-                              — Setup ready
-                            </span>
-                          )}
-                        </Label>
-                        {pm.instructions && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {pm.instructions}
-                          </p>
-                        )}
-                        {isCod && pm.supportsCodDeliveryCharge && (
-                          <p className="text-xs text-amber-600 mt-1">
-                            Delivery charge prepayment will be required when online payment is activated.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </RadioGroup>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Order Summary */}
-        <Card className="bg-primary/5 border-primary/10 rounded-2xl shadow-sm">
-          <CardContent className="p-6 md:p-8 space-y-4">
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Order Summary</h2>
-            </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal ({items.length} item{items.length > 1 ? "s" : ""})</span>
-                <span className="font-medium">৳{subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Delivery Fee</span>
-                <span className="font-medium">৳{deliveryFee.toLocaleString()}</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Discount ({coupon.code})</span>
-                  <span>-৳{discount.toLocaleString()}</span>
-                </div>
               )}
             </div>
-            <Separator />
-            <div className="flex justify-between font-bold text-xl">
-              <span>Total</span>
-              <span>৳{total.toLocaleString()}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5" /> Your information is secure
-          </p>
-          <Button
-            size="lg"
-            className="h-12 md:h-14 px-10 text-base rounded-xl"
-            type="submit"
-            disabled={loading || !otpVerified}
-          >
-            {loading
-              ? "Placing Order..."
-              : otpVerified
-                ? `Place Order — ৳${total.toLocaleString()}`
-                : "Verify Email to Place Order"}
-          </Button>
+          ))}
         </div>
-      </form>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main form area */}
+        <div className="lg:col-span-2 space-y-6">
+          {validationErrors.length > 0 && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-xl px-5 py-4">
+              <p className="text-sm font-medium text-destructive mb-1">Please fix the following:</p>
+              <ul className="list-disc list-inside text-sm text-destructive/80 space-y-0.5">
+                {validationErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <Link href="/cart" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors group">
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Cart
+          </Link>
+
+          {/* Step 0: Contact */}
+          {step === 0 && (
+            <Card className="overflow-hidden border-border/50 rounded-2xl shadow-sm">
+              <CardContent className="p-6 md:p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">1</span>
+                  <div>
+                    <h2 className="text-lg font-semibold">Contact Information</h2>
+                    <p className="text-xs text-muted-foreground">We&apos;ll use this to confirm your order</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={draft.name}
+                      onChange={(e) => updateField("name", e.target.value)}
+                      placeholder="John Doe"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={draft.email}
+                      onChange={(e) => updateField("email", e.target.value)}
+                      placeholder="john@example.com"
+                      disabled={otpVerified}
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={draft.phone}
+                      onChange={(e) => updateField("phone", e.target.value)}
+                      placeholder="01XXXXXXXXX"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 1: Delivery */}
+          {step === 1 && (
+            <Card className="overflow-hidden border-border/50 rounded-2xl shadow-sm">
+              <CardContent className="p-6 md:p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">2</span>
+                  <div>
+                    <h2 className="text-lg font-semibold">Delivery Address</h2>
+                    <p className="text-xs text-muted-foreground">Where should we send your order?</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="division">Division</Label>
+                    <Input
+                      id="division"
+                      value={draft.division}
+                      onChange={(e) => updateField("division", e.target.value)}
+                      placeholder="Chattogram"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="district">District</Label>
+                    <Input
+                      id="district"
+                      value={draft.district}
+                      onChange={(e) => updateField("district", e.target.value)}
+                      placeholder="Chattogram"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="thana">Thana / Upazila</Label>
+                    <Input
+                      id="thana"
+                      value={draft.thana}
+                      onChange={(e) => updateField("thana", e.target.value)}
+                      placeholder="Kotwali"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="deliveryZone">Delivery Zone</Label>
+                    <Select
+                      value={deliveryZone}
+                      onValueChange={(v) => {
+                        if (!v) return
+                        setDeliveryZone(v as DeliveryZone)
+                        updateField("selectedDeliveryZone", v)
+                      }}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(DELIVERY_ZONE_NAMES).map(([key, name]) => (
+                          <SelectItem key={key} value={key}>
+                            {name} (৳{DELIVERY_FEES[key]})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fullAddress">Full Address</Label>
+                  <Input
+                    id="fullAddress"
+                    value={draft.fullAddress}
+                    onChange={(e) => updateField("fullAddress", e.target.value)}
+                    placeholder="House #, Road #, Area"
+                    className="h-11 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="note">Order Note (optional)</Label>
+                  <Input
+                    id="note"
+                    value={draft.note}
+                    onChange={(e) => updateField("note", e.target.value)}
+                    placeholder="Any special instructions?"
+                    className="h-11 rounded-xl"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: Offer & Payment */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <Card className="border-border/50 rounded-2xl shadow-sm">
+                <CardContent className="p-6 md:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">3</span>
+                    <div>
+                      <h2 className="text-lg font-semibold">Coupon Code</h2>
+                      <p className="text-xs text-muted-foreground">Have a discount code?</p>
+                    </div>
+                  </div>
+                  {couponApplied ? (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-700">{couponCode}</span>
+                        <span className="text-sm text-green-600">(-৳{couponDiscount.toLocaleString()})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-sm text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={couponCode}
+                        onChange={(e) => { setCouponCode(e.target.value); setCouponError("") }}
+                        placeholder="Enter coupon code"
+                        className="flex-1 uppercase h-11 rounded-xl"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponCode.trim()}
+                        className="h-11 rounded-xl"
+                      >
+                        {couponLoading ? "..." : "Apply"}
+                      </Button>
+                    </div>
+                  )}
+                  {couponError && (
+                    <p className="text-sm text-destructive">{couponError}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50 rounded-2xl shadow-sm">
+                <CardContent className="p-6 md:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">4</span>
+                    <div>
+                      <h2 className="text-lg font-semibold">Payment Method</h2>
+                      <p className="text-xs text-muted-foreground">Choose how to pay</p>
+                    </div>
+                  </div>
+                  {paymentMethodsLoading ? (
+                    <p className="text-sm text-muted-foreground animate-pulse">Loading payment options...</p>
+                  ) : paymentMethods.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No payment methods available.</p>
+                  ) : (
+                    <RadioGroup
+                      value={paymentMethod}
+                      onValueChange={(v) => {
+                        setPaymentMethod(v)
+                        updateField("selectedPaymentMethod", v)
+                      }}
+                      className="space-y-3"
+                    >
+                      {paymentMethods.map((pm) => {
+                        const isOnline = ONLINE_PROVIDERS.includes(pm.provider)
+                        const isCod = pm.provider === "COD"
+                        return (
+                          <div
+                            key={pm.provider}
+                            className={`flex items-start gap-4 rounded-xl border p-4 transition-all ${
+                              isOnline
+                                ? "opacity-60 border-dashed bg-muted/20"
+                                : paymentMethod === pm.provider.toLowerCase()
+                                  ? "border-primary bg-primary/5"
+                                  : "hover:border-muted-foreground/30"
+                            }`}
+                          >
+                            <RadioGroupItem
+                              value={pm.provider.toLowerCase()}
+                              id={pm.provider}
+                              disabled={isOnline}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <Label
+                                htmlFor={pm.provider}
+                                className={`font-medium text-sm ${
+                                  isOnline
+                                    ? "text-muted-foreground cursor-not-allowed"
+                                    : "cursor-pointer"
+                                }`}
+                              >
+                                {pm.displayName}
+                                {isOnline && (
+                                  <span className="ml-2 text-xs text-muted-foreground italic">
+                                    — Setup ready
+                                  </span>
+                                )}
+                              </Label>
+                              {pm.instructions && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {pm.instructions}
+                                </p>
+                              )}
+                              {isCod && pm.supportsCodDeliveryCharge && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                  Delivery charge prepayment will be required when online payment is activated.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </RadioGroup>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Step 3: Verification */}
+          {step === 3 && (
+            <Card className="border-border/50 rounded-2xl shadow-sm">
+              <CardContent className="p-6 md:p-8 space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">5</span>
+                  <div>
+                    <h2 className="text-lg font-semibold">Email Verification</h2>
+                    <p className="text-xs text-muted-foreground">Verify your email to place the order</p>
+                  </div>
+                </div>
+
+                {otpVerified ? (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
+                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                    <span className="text-sm font-medium text-green-700">Email verified successfully</span>
+                  </div>
+                ) : otpSent ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      A 6-digit code has been sent to <strong className="text-foreground">{draft.email}</strong>
+                    </p>
+                    <div className="flex gap-3">
+                      <Input
+                        value={otpCode}
+                        onChange={(e) => { setOtpCode(e.target.value); setOtpError("") }}
+                        placeholder="000000"
+                        maxLength={6}
+                        className="text-center text-lg tracking-[0.5em] w-40 font-mono h-12 rounded-xl"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleVerifyOtp}
+                        disabled={otpLoading || otpCode.length !== 6}
+                        className="h-12 rounded-xl"
+                      >
+                        {otpLoading ? "Verifying..." : "Verify"}
+                      </Button>
+                    </div>
+                    {otpError && (
+                      <p className="text-sm text-destructive">{otpError}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="text-sm text-primary hover:underline"
+                      disabled={otpLoading}
+                    >
+                      Resend code
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      We&apos;ll send a verification code to <strong className="text-foreground">{draft.email}</strong>
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={otpLoading || !draft.email}
+                      className="h-12 rounded-xl"
+                    >
+                      {otpLoading ? "Sending..." : "Send Verification Code"}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4: Review & Place */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <Card className="border-border/50 rounded-2xl shadow-sm">
+                <CardContent className="p-6 md:p-8 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary text-primary-foreground text-sm font-bold">6</span>
+                    <div>
+                      <h2 className="text-lg font-semibold">Review Your Order</h2>
+                      <p className="text-xs text-muted-foreground">Please confirm everything is correct</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 divide-y divide-border/50">
+                    <div className="space-y-2 pb-4">
+                      <h3 className="text-sm font-medium text-muted-foreground">Contact</h3>
+                      <p className="text-sm">{draft.name}</p>
+                      <p className="text-sm">{draft.email}</p>
+                      <p className="text-sm">{draft.phone}</p>
+                    </div>
+                    <div className="space-y-2 pb-4 pt-4">
+                      <h3 className="text-sm font-medium text-muted-foreground">Delivery</h3>
+                      <p className="text-sm">{draft.fullAddress}</p>
+                      <p className="text-sm">{draft.thana}, {draft.district}, {draft.division}</p>
+                      <p className="text-sm">{DELIVERY_ZONE_NAMES[deliveryZone as keyof typeof DELIVERY_ZONE_NAMES] || deliveryZone}</p>
+                      {draft.note && <p className="text-sm text-muted-foreground italic">Note: {draft.note}</p>}
+                    </div>
+                    <div className="space-y-2 pb-4 pt-4">
+                      <h3 className="text-sm font-medium text-muted-foreground">Payment</h3>
+                      <p className="text-sm capitalize">{paymentMethod === "cod" ? "Cash on Delivery" : paymentMethod}</p>
+                      {couponApplied && (
+                        <p className="text-sm text-green-600">Coupon {couponCode} applied (-৳{couponDiscount.toLocaleString()})</p>
+                      )}
+                    </div>
+                    <div className="space-y-2 pt-4">
+                      <h3 className="text-sm font-medium text-muted-foreground">Items</h3>
+                      {items.map((item, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {item.name || "Product"}
+                            {item.size ? ` (${item.size}` : ""}{item.color ? ` / ${item.color}` : ""}{item.size ? ")" : ""}
+                            {" "}x{item.quantity}
+                          </span>
+                          <span className="font-medium">৳{(item.price * item.quantity).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Button
+                size="lg"
+                className="w-full h-12 md:h-14 text-base rounded-xl"
+                onClick={handlePlaceOrder}
+                disabled={loading}
+              >
+                {loading ? "Placing Order..." : `Place Order — ৳${total.toLocaleString()}`}
+              </Button>
+            </div>
+          )}
+
+          {/* Navigation */}
+          {step < 4 && (
+            <div className="flex items-center justify-between gap-4 pt-2">
+              <div>
+                {!isFirstStep ? (
+                  <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
+                    <ChevronLeft className="h-4 w-4" /> Back
+                  </Button>
+                ) : (
+                  <div />
+                )}
+              </div>
+              <Button type="button" onClick={handleNext} className="gap-1.5 h-11 rounded-xl px-6">
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Sticky Order Summary */}
+        <div className="lg:col-span-1">
+          <div className="lg:sticky lg:top-24 space-y-4">
+            <Card className="bg-primary/5 border-primary/10 rounded-2xl shadow-sm">
+              <CardContent className="p-5 md:p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-semibold">Order Summary</h2>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  {/* Items */}
+                  <div className="divide-y divide-border/30">
+                    {items.map((item, i) => (
+                      <div key={i} className="flex justify-between py-1.5 first:pt-0 text-sm">
+                        <span className="text-muted-foreground truncate max-w-[180px]">
+                          {item.name || "Product"}
+                          {item.size ? ` (${item.size}` : ""}{item.color ? ` / ${item.color}` : ""}{item.size ? ")" : ""}
+                        </span>
+                        <span className="font-medium shrink-0">x{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="font-medium">৳{subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Delivery Fee</span>
+                    <span className="font-medium">৳{deliveryFee}</span>
+                  </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Discount ({couponCode})</span>
+                      <span>-৳{discount.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between font-bold text-base">
+                  <span>Total</span>
+                  <span>৳{total.toLocaleString()}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5 px-1">
+              <Shield className="h-3.5 w-3.5 shrink-0" /> Your information is secure
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
