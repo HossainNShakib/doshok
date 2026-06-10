@@ -253,6 +253,27 @@ export function CheckoutForm() {
 
   useEffect(() => {
     if (!isLoggedIn) return
+    fetch("/api/account/profile")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success || !d.data) return
+        const profile = d.data as { firstName?: string; lastName?: string; email?: string; phone?: string | null }
+        const updates: Partial<CheckoutDraft> = {}
+        if (profile.firstName || profile.lastName) {
+          const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ")
+          if (fullName && !draft.name) updates.name = fullName
+        }
+        if (profile.email && !draft.email) updates.email = profile.email
+        if (profile.phone && !draft.phone) updates.phone = profile.phone
+        if (Object.keys(updates).length > 0) {
+          updateFields(updates)
+        }
+      })
+      .catch(() => {})
+  }, [isLoggedIn, updateFields])
+
+  useEffect(() => {
+    if (!isLoggedIn) return
     setAddressesLoading(true)
     fetch("/api/account/addresses")
       .then((r) => r.json())
