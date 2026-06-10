@@ -45,7 +45,7 @@ export default function AccountOrdersPage() {
     fetch(`/api/orders?userId=${session.user.id}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setOrders(d.data)
+        if (d.success && Array.isArray(d.data.orders)) setOrders(d.data.orders)
       })
       .catch(() => {})
       .finally(() => setLoading(false))

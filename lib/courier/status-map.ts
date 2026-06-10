@@ -20,6 +20,17 @@ export const STEADFAST_SHIPMENT_STATUS_MAP: Record<string, ShipmentStatus> = {
   failed: "FAILED",
 }
 
+export const REDX_SHIPMENT_STATUS_MAP: Record<string, ShipmentStatus> = {
+  PENDING: "PENDING",
+  PICKED: "DISPATCHED",
+  IN_TRANSIT: "IN_TRANSIT",
+  DELIVERED: "DELIVERED",
+  RETURNED: "RETURNED",
+  CANCELLED: "CANCELLED",
+  FAILED: "FAILED",
+  UNDELIVERED: "FAILED",
+}
+
 export const SHIPMENT_TO_ORDER_STATUS_MAP: Record<ShipmentStatus, OrderStatus> = {
   NOT_CREATED: "pending",
   SETUP_READY: "confirmed",
@@ -55,4 +66,10 @@ export function mapSteadfastStatus(rawStatus: string | undefined): ShipmentStatu
   if (!rawStatus) return "PENDING"
   const normalized = rawStatus.toLowerCase().trim()
   return STEADFAST_SHIPMENT_STATUS_MAP[normalized] ?? "PENDING"
+}
+
+export function mapRedxStatus(rawStatus: string | undefined): ShipmentStatus {
+  if (!rawStatus) return "PENDING"
+  const normalized = rawStatus.toUpperCase().trim()
+  return REDX_SHIPMENT_STATUS_MAP[normalized] ?? "PENDING"
 }

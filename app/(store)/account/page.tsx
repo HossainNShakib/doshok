@@ -45,7 +45,7 @@ export default function AccountDashboardPage() {
     fetch(`/api/orders?userId=${session.user.id}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setOrders(d.data.slice(0, 5))
+        if (d.success && Array.isArray(d.data.orders)) setOrders(d.data.orders.slice(0, 5))
       })
       .catch(() => {})
     fetch("/api/account/addresses")

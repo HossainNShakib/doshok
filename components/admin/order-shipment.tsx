@@ -96,6 +96,8 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
           toast.success("Parcel created in Pathao successfully")
         } else if (provider === "STEADFAST") {
           toast.success("Parcel created in Steadfast successfully")
+        } else if (provider === "REDX") {
+          toast.success("Parcel created in RedX successfully")
         } else {
           toast.success("Shipment created (manual fulfillment)")
         }
@@ -224,8 +226,8 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
               Creating a real Steadfast parcel via the Steadfast API.
             </p>
           ) : (
-            <p className="text-center text-xs text-amber-600 font-medium">
-              RedX integration coming soon. Parcel will be created locally with SETUP_READY status.
+            <p className="text-center text-xs text-green-600 font-medium">
+              Creating a real RedX parcel via the RedX API.
             </p>
           )}
         </div>
@@ -301,6 +303,10 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
           ) : shipment.courierProvider === "STEADFAST" ? (
             <p className="text-center text-xs text-muted-foreground">
               Steadfast parcel. Use manual status updates or implement webhooks for auto-sync.
+            </p>
+          ) : shipment.courierProvider === "REDX" ? (
+            <p className="text-center text-xs text-muted-foreground">
+              RedX parcel. Use manual status updates or implement webhooks for auto-sync.
             </p>
           ) : (
             <p className="text-center text-xs text-amber-600 font-medium">

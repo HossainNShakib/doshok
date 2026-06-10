@@ -2,9 +2,9 @@
 
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
-import { SessionProvider, useSession, signOut } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { User, Package, Settings, LogOut, AlertTriangle, X, MapPin } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 function AccountLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -14,11 +14,18 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isLoginPage = pathname === "/account/login"
 
-  if (status === "loading") return null
+  useEffect(() => {
+    if (status === "unauthenticated" && !isLoginPage) {
+      router.push("/auth/login")
+    }
+  }, [status, isLoginPage, router])
+
+  if (status === "loading") {
+    return <div className="container mx-auto container-px py-8 md:py-12" />
+  }
 
   if (!session?.user && !isLoginPage) {
-    router.push("/auth/login")
-    return null
+    return <div className="container mx-auto container-px py-8 md:py-12" />
   }
 
   const isVerified = !!session?.user?.emailVerified
@@ -131,9 +138,5 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <SessionProvider>
-      <AccountLayoutContent>{children}</AccountLayoutContent>
-    </SessionProvider>
-  )
+  return <AccountLayoutContent>{children}</AccountLayoutContent>
 }

@@ -20,14 +20,13 @@ const footerColumns = [
     links: [
       ["All Products", "/products"],
       ["New Arrivals", "/new-arrivals"],
-      ["About Doshok", "/about"],
+      ["About", "/about"],
       ["Contact", "/contact"],
     ],
   },
   {
     title: "Help",
     links: [
-      ["Help Hub", "/help"],
       ["FAQ", "/faq"],
       ["Size Guide", "/size-guide"],
       ["Care Guide", "/care-guide"],
@@ -37,11 +36,10 @@ const footerColumns = [
   {
     title: "Policy",
     links: [
-      ["Policy Hub", "/policy"],
       ["Privacy Policy", "/privacy-policy"],
       ["Terms & Conditions", "/terms"],
       ["Return Policy", "/return-policy"],
-      ["Delivery Policy", "/delivery"],
+      ["Delivery", "/delivery"],
     ],
   },
 ]
@@ -60,11 +58,23 @@ export async function SiteFooter() {
           <Link href="/" className={styles.logo}>
             <span className={styles.mark}>D</span>
             <span className={styles.word}>
-              Doshok<span className="text-[#ee2c3c]">.</span>com
+              Doshok<span className="text-[#364152]">.</span>com
             </span>
           </Link>
-          <div className={styles.brandTag}>&quot;Let&apos;s Shop Beyond Boundaries&quot;</div>
-          <div className={styles.brandBn}>দশক — আপনার প্রতিদিনের স্টাইল</div>
+          <div className={styles.brandTag}>Style That Speaks</div>
+          {settings?.footerText && (
+            <div className={styles.brandBn}>{settings.footerText}</div>
+          )}
+          {settings?.phone && (
+            <div className={styles.contact}>
+              <span>Phone: {settings.phone}</span>
+            </div>
+          )}
+          {settings?.supportEmail && (
+            <div className={styles.contact}>
+              <span>Email: {settings.supportEmail}</span>
+            </div>
+          )}
           {socials.length > 0 && (
             <div className={styles.socials}>
               {socials.map(([label, href, name]) => (
@@ -91,7 +101,7 @@ export async function SiteFooter() {
           </div>
         ))}
       </div>
-      <div className={styles.copyright}>© 2025, Doshok.com</div>
+      <div className={styles.copyright}>© {new Date().getFullYear()}, Doshok.com</div>
     </footer>
   )
 }

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { Heart, PackageCheck, Star } from "lucide-react"
+import { PackageCheck } from "lucide-react"
 import { LOW_STOCK_THRESHOLD } from "@/types"
 
 type ProductCardProps = {
@@ -45,9 +45,6 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="text-xs">Image coming soon</span>
           </div>
         )}
-        <span className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-muted-foreground shadow-sm backdrop-blur transition-all duration-300 group-hover:scale-110 group-hover:text-red-500">
-          <Heart className="h-4 w-4" />
-        </span>
         {isSoldOut && (
           <div className="absolute top-3 left-3 z-10">
             <Badge variant="destructive" className="rounded-full text-[10px] px-2.5 py-0.5 font-medium tracking-wide uppercase shadow-sm">
@@ -77,10 +74,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
         )}
         <h3 className="line-clamp-2 min-h-[2.3rem] text-sm font-semibold leading-snug tracking-tight md:text-[15px]">{product.name}</h3>
-        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-          <span>4.9</span>
-          <span>·</span>
+        <div className="mt-1.5 text-[11px] text-muted-foreground">
           <span>{totalStock > 0 ? `${totalStock} in stock` : "Sold out"}</span>
         </div>
         <div className="mt-1.5 flex flex-wrap items-baseline gap-2">

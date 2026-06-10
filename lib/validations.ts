@@ -158,6 +158,11 @@ export const siteSettingsSchema = z.object({
   instagramUrl: z.string().optional().or(z.literal("")),
   address: z.string().min(1),
   footerText: z.string().min(1),
+  accentColor: z.string().optional().default("#364152"),
+  buttonRadius: z.string().optional().default("xl"),
+  cardRadius: z.string().optional().default("1.5rem"),
+  storefrontTone: z.string().optional().default("light"),
+  adminAccentTone: z.string().optional().default("neutral"),
 })
 
 export const otpSchema = z.object({

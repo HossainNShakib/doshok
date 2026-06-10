@@ -81,6 +81,11 @@
   --sidebar-accent-foreground: oklch(0.21 0.034 264.665);
   --sidebar-border: oklch(0.928 0.006 264.531);
   --sidebar-ring: oklch(0.707 0.022 261.325);
+  --doshok-accent: oklch(0.21 0.034 264.665);
+  --doshok-accent-foreground: oklch(0.985 0.003 247.858);
+  --doshok-btn-radius: 0.75rem;
+  --doshok-card-radius: 1.5rem;
+  --doshok-bg-tone: #fafaf8;
 }
 
 .dark {

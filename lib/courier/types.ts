@@ -53,10 +53,6 @@ export type PathaoErrorResponse = {
   detail?: string
 }
 
-export type ParcelCreateResult =
-  | { success: true; consignmentId: string; trackingCode: string; status: string; response: PathaoParcelResponse | SteadfastParcelResponse }
-  | { success: false; reason: string; detail?: string }
-
 export type PathaoValidationResult =
   | { valid: true; mode: "SANDBOX" | "LIVE"; storeId: string }
   | { valid: false; reason: "not_configured" | "not_enabled" | "missing_credentials" | "missing_store_id" }
@@ -92,3 +88,50 @@ export type SteadfastErrorResponse = {
   message: string
   error?: string
 }
+
+export type RedxCredentials = {
+  apiToken: string
+  storeId: string
+  baseUrl: string
+}
+
+export type RedxValidationResult =
+  | { valid: true; mode: "SANDBOX" | "LIVE"; storeId: string }
+  | { valid: false; reason: "not_configured" | "not_enabled" | "missing_credentials" | "missing_store_id" }
+
+export type RedxParcelPayload = {
+  merchant_order_id: string
+  recipient_name: string
+  recipient_phone: string
+  recipient_address: string
+  cod_amount: number
+  note: string
+  store_id?: string
+}
+
+export type RedxParcelResponse = {
+  id: number
+  tracking_code: string
+  status: string
+  message: string
+  customer_name?: string
+  customer_phone?: string
+  customer_address?: string
+  cod_amount?: number
+  order_value?: number
+  delivery_fee?: number
+  delivery_date?: string
+  area_id?: number
+  area_name?: string
+  weight?: string
+}
+
+export type RedxErrorResponse = {
+  message: string
+  errors?: Record<string, string[]>
+  status_code?: number
+}
+
+export type ParcelCreateResult =
+  | { success: true; consignmentId: string; trackingCode: string; status: string; response: PathaoParcelResponse | SteadfastParcelResponse | RedxParcelResponse }
+  | { success: false; reason: string; detail?: string }

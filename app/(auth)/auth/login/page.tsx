@@ -14,7 +14,23 @@ import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react"
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/account"
+
+  function getSafeCallbackUrl(url: string | null): string {
+    if (!url) return "/account"
+    try {
+      const parsed = new URL(url, "http://localhost")
+      if (parsed.origin !== "http://localhost") return "/account"
+      const path = parsed.pathname
+      if (path.startsWith("/auth/") || path.startsWith("/admin") || path === "/") return "/account"
+      return path
+    } catch {
+      return "/account"
+    }
+  }
+
+  const rawCallbackUrl = searchParams.get("callbackUrl")
+  const callbackUrl = getSafeCallbackUrl(rawCallbackUrl)
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -57,13 +73,11 @@ function LoginForm() {
         toast.error("Please use the admin login portal")
         await signOut({ redirect: false })
         router.push("/admin/login")
-        router.refresh()
         return
       }
 
       toast.success("Signed in successfully")
       router.push(callbackUrl)
-      router.refresh()
     } catch {
       toast.error("Something went wrong")
     } finally {

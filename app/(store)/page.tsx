@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { ProductCard } from "@/components/store/product-card"
-import { Briefcase, Grid3X3, Heart, ImageIcon, PackageCheck, Shirt, ShoppingBag, Watch, Zap } from "lucide-react"
+import { Briefcase, Grid3X3, ImageIcon, PackageCheck, Shirt, ShoppingBag, Watch } from "lucide-react"
 import styles from "./page.module.css"
 
 type HomeProduct = {
@@ -65,14 +65,6 @@ async function getHomepageData() {
   return { categories, latestProducts, saleProducts, featuredProducts }
 }
 
-function formatPrice(price: number) {
-  return `৳${price.toLocaleString("en-IN")}`
-}
-
-function productStock(product: HomeProduct) {
-  return product.variants.reduce((total, variant) => total + variant.stock, 0)
-}
-
 function CategoryCard({ category, index }: { category: HomeCategory; index: number }) {
   const icons = [Shirt, Shirt, Shirt, Briefcase, ShoppingBag, Shirt, Watch, ShoppingBag]
   const Icon = icons[index % icons.length]
@@ -87,48 +79,15 @@ function CategoryCard({ category, index }: { category: HomeCategory; index: numb
   )
 }
 
-function StoreCard({ title, tag, letter, products }: { title: string; tag: string; letter: string; products: HomeProduct[] }) {
-  return (
-    <div className={styles.storeCard}>
-      <div className={styles.storeHead}>
-        <div className={styles.storeLogo}>
-          {letter}
-          <span className={styles.verify}>✓</span>
-        </div>
-        <div>
-          <div className={styles.storeName}>{title}</div>
-          <div className={styles.storeTag}>&quot;{tag}&quot;</div>
-        </div>
-      </div>
-      <div className={styles.storeProds}>
-        {products.map((product) => (
-          <Link key={product.id} href={`/products/${product.slug}`} className={styles.storeProd}>
-            <div className={styles.storeImg}>
-              {product.images[0] ? (
-                <img src={product.images[0]} alt={product.name} loading="lazy" />
-              ) : (
-                <div className={styles.imageEmpty}>
-                  <ImageIcon size={18} />
-                </div>
-              )}
-            </div>
-            <div className={styles.storePrice}>{formatPrice(product.price)}</div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default async function HomePage() {
   const { categories, latestProducts, saleProducts, featuredProducts } = await getHomepageData()
-  const flashProducts = (saleProducts.length > 0 ? saleProducts : latestProducts).slice(0, 4)
-  const todayProducts = latestProducts.slice(0, 8)
+  const newArrivals = latestProducts.slice(0, 8)
+  const discountedProducts = saleProducts.length > 0 ? saleProducts.slice(0, 4) : []
   const heroProducts = [...latestProducts, ...featuredProducts].filter((product, index, list) => (
     product.images[0] && list.findIndex((item) => item.id === product.id) === index
   )).slice(0, 4)
-  const storeProducts = (featuredProducts.length > 0 ? featuredProducts : latestProducts).slice(0, 12)
-  const promoProduct = storeProducts.find((product) => product.images[0]) ?? storeProducts[0]
+  const pickProducts = (featuredProducts.length > 0 ? featuredProducts : latestProducts).slice(0, 4)
+  const promoProduct = pickProducts.find((product) => product.images[0]) ?? pickProducts[0]
   const hasProducts = latestProducts.length > 0
 
   return (
@@ -136,7 +95,7 @@ export default async function HomePage() {
       <section className={styles.hero}>
         <div className={styles.heroLeft}>
           <div className={styles.heroTag}>
-            <span className={styles.hash}>#</span>Style That Speaks
+            <span className={styles.hash}>D</span>Style That Speaks
           </div>
           <h1 className={styles.heroTitle}>
             Premium Bangladeshi<br />Fashion, <em>Curated.</em>
@@ -168,7 +127,7 @@ export default async function HomePage() {
           ) : (
             <div className={styles.emptyHero}>
               <PackageCheck className="h-10 w-10 text-[#999] mb-3" />
-              <span className="text-sm font-semibold">Premium drops arriving soon</span>
+              <span className="text-sm font-semibold">Premium collections arriving soon</span>
               <span className="text-xs text-[#999] mt-1">Be the first to know when we launch</span>
             </div>
           )}
@@ -182,7 +141,7 @@ export default async function HomePage() {
         <section className={styles.emptyState}>
           <div className={styles.emptyStateInner}>
             <h2>Welcome to Doshok</h2>
-            <p>We are curating a collection of premium Bangladeshi fashion. Our first drop is coming soon.</p>
+            <p>We are curating a collection of premium Bangladeshi fashion. Our first collection is coming soon.</p>
             <div className={styles.emptyStateFeatures}>
               <div className={styles.emptyFeature}>
                 <Shirt size={24} />
@@ -213,24 +172,20 @@ export default async function HomePage() {
         </section>
       )}
 
-      {flashProducts.length > 0 && (
+      {discountedProducts.length > 0 && (
         <section className={styles.section}>
           <div className={styles.sectionWrap}>
             <div className={styles.sectionHead}>
               <div className={styles.sectionTitle}>
-                <span className={styles.bolt}><Zap size={16} fill="currentColor" /></span>
-                Flash Sale
-                <div className={styles.timer} aria-label="Sale products">
-                  <span className={styles.seg}>{flashProducts.length}</span>
-                  <span className={styles.colon}>items</span>
-                </div>
+                <span className={styles.bolt}><PackageCheck size={16} /></span>
+                Special Discount
               </div>
               <Link href="/products?discount=true" className={styles.viewAll}>
                 View All <span className="inline-block ml-1">→</span>
               </Link>
             </div>
             <div className={styles.row}>
-              {flashProducts.map((product) => (
+              {discountedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -238,25 +193,26 @@ export default async function HomePage() {
         </section>
       )}
 
-      {todayProducts.length > 0 && (
+      {newArrivals.length > 0 && (
         <section className={styles.section}>
           <div className={`${styles.sectionWrap} ${styles.sectionWhite}`}>
             <div className={styles.sectionHead}>
-              <div className={styles.sectionTitle}>Todays For You!</div>
+              <div className={styles.sectionTitle}>New Arrivals</div>
               <div className={styles.tabs}>
-                <Link href="/products" className={`${styles.tab} ${styles.tabActive}`}>Best Seller</Link>
-                <Link href="/new-arrivals" className={styles.tab}>New Arrivals</Link>
-                <Link href="/products?discount=true" className={styles.tab}>Special Discount</Link>
-                <Link href="/products?featured=true" className={styles.tab}>Doshok Picks</Link>
+                <Link href="/new-arrivals" className={`${styles.tab} ${styles.tabActive}`}>New Arrivals</Link>
+                <Link href="/products?featured=true" className={styles.tab}>Featured</Link>
+                {discountedProducts.length > 0 && (
+                  <Link href="/products?discount=true" className={styles.tab}>Discounted</Link>
+                )}
               </div>
             </div>
             <div className={styles.row} style={{ marginBottom: 16 }}>
-              {todayProducts.slice(0, 4).map((product) => (
+              {newArrivals.slice(0, 4).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
             <div className={styles.row}>
-              {todayProducts.slice(4, 8).map((product) => (
+              {newArrivals.slice(4, 8).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -264,7 +220,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {storeProducts.length > 0 && (
+      {pickProducts.length > 0 && (
         <section className={styles.section}>
           <div className={`${styles.sectionWrap} ${styles.sectionWhite}`}>
             <div className={styles.bssHead}>Doshok Picks</div>
@@ -286,13 +242,32 @@ export default async function HomePage() {
                 </div>
               </div>
               <div className={styles.bssGrid}>
-                {[
-                  ["Featured Edit", "Selected from featured products", "F"],
-                  ["Latest Edit", "Newest Doshok arrivals", "N"],
-                  ["Sale Edit", "Products with active discounts", "S"],
-                  ["Essentials Edit", "Everyday wardrobe pieces", "E"],
-                ].map(([title, tag, letter], index) => (
-                  <StoreCard key={title} title={title} tag={tag} letter={letter} products={storeProducts.slice(index * 3, index * 3 + 3)} />
+                {pickProducts.slice(0, 4).map((product, index) => (
+                  <Link key={product.id} href={`/products/${product.slug}`} className={styles.storeCard}>
+                    <div className={styles.storeHead}>
+                      <div className={styles.storeLogo}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <div className={styles.storeName}>{product.name}</div>
+                        <div className={styles.storeTag}>Featured</div>
+                      </div>
+                    </div>
+                    <div className={styles.storeProds}>
+                      <div className={styles.storeProd}>
+                        <div className={styles.storeImg}>
+                          {product.images[0] ? (
+                            <img src={product.images[0]} alt={product.name} loading="lazy" />
+                          ) : (
+                            <div className={styles.imageEmpty}>
+                              <ImageIcon size={18} />
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.storePrice}>৳{product.price.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -302,7 +277,7 @@ export default async function HomePage() {
 
       <section className={styles.quote}>
         <div className={styles.hangers} />
-        <h2>&quot;Let&apos;s Shop Beyond Boundaries&quot;</h2>
+        <h2>&quot;Style That Speaks&quot;</h2>
       </section>
     </>
   )

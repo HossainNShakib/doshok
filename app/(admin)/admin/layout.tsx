@@ -18,12 +18,15 @@ import {
   Home,
   Settings,
   Wallet,
-  Store,
-  TrendingUp,
-  SlidersHorizontal,
+  Truck,
   Pin,
   PinOff,
-  Truck,
+  Tag,
+  Users,
+  Star,
+  Briefcase,
+  Headphones,
+  BriefcaseBusiness,
 } from "lucide-react"
 
 const STORAGE_KEY = "doshok_admin_sidebar_pinned"
@@ -41,20 +44,16 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Main",
+    label: "Overview",
     items: [
       { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/admin/commerce", label: "Commerce Hub", icon: Store },
-      { href: "/admin/sales", label: "Sales Hub", icon: TrendingUp },
-      { href: "/admin/settings", label: "Settings Hub", icon: SlidersHorizontal },
     ],
   },
   {
-    label: "Commerce",
+    label: "Catalog",
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
-      { href: "/admin/landing-pages", label: "Landing Pages", icon: FileText },
       { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
     ],
   },
@@ -62,17 +61,43 @@ const navGroups: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-      { href: "/admin/abandoned", label: "Abandoned Checkouts", icon: ShoppingBag },
+      { href: "/admin/abandoned", label: "Abandoned", icon: ShoppingBag },
+    ],
+  },
+  {
+    label: "Customers",
+    items: [
+      { href: "/admin/customers", label: "Customers", icon: Users },
+      { href: "/admin/reviews", label: "Reviews", icon: Star },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { href: "/admin/landing-pages", label: "Landing Pages", icon: FileText },
+      { href: "/admin/homepage", label: "Homepage", icon: Home },
+      { href: "/admin/cms", label: "CMS", icon: Briefcase },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { href: "/admin/payment-methods", label: "Payment", icon: Wallet },
+      { href: "/admin/courier-methods", label: "Courier", icon: Truck },
+      { href: "/admin/delivery-zones", label: "Delivery Zones", icon: MapPin },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { href: "/admin/support", label: "Support", icon: Headphones },
+      { href: "/admin/careers", label: "Careers", icon: BriefcaseBusiness },
     ],
   },
   {
     label: "Settings",
     items: [
-      { href: "/admin/homepage", label: "Homepage", icon: Home },
       { href: "/admin/site-settings", label: "Site Settings", icon: Settings },
-      { href: "/admin/payment-methods", label: "Payment Methods", icon: Wallet },
-      { href: "/admin/delivery-zones", label: "Delivery Zones", icon: MapPin },
-      { href: "/admin/courier-methods", label: "Courier Methods", icon: Truck },
     ],
   },
 ]

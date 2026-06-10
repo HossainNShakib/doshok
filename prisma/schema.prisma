@@ -286,16 +286,21 @@ model OtpVerification {
 }
 
 model SiteSettings {
-  id            String @id @default("default")
-  brandName     String @default("DOSHOK")
-  supportEmail  String @default("hello@doshok.com")
-  phone         String @default("")
-  whatsapp      String?
-  facebookUrl   String?
-  instagramUrl  String?
-  address       String @default("We deliver across all districts of Bangladesh. Our operation hub is in Chattogram.")
-  footerText    String @default("Premium Bangladeshi fashion for the modern wardrobe.")
-  updatedAt     DateTime @updatedAt
+  id              String  @id @default("default")
+  brandName       String  @default("DOSHOK")
+  supportEmail    String  @default("hello@doshok.com")
+  phone           String  @default("")
+  whatsapp        String?
+  facebookUrl     String?
+  instagramUrl    String?
+  address         String  @default("We deliver across all districts of Bangladesh. Our operation hub is in Chattogram.")
+  footerText      String  @default("Premium Bangladeshi fashion for the modern wardrobe.")
+  accentColor     String  @default("#364152")
+  buttonRadius    String  @default("xl")
+  cardRadius      String  @default("1.5rem")
+  storefrontTone  String  @default("light")
+  adminAccentTone String  @default("neutral")
+  updatedAt       DateTime @updatedAt
 }
 
 model HomepageConfig {
