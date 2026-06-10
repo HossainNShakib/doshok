@@ -13,7 +13,7 @@ export default async function AdminLandingPagesPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader eyebrow="Commerce" title="Landing Pages" description={`${landingProducts.length} landing page${landingProducts.length === 1 ? "" : "s"} for campaign traffic.`} action={{ label: "New Landing Page", href: "/admin/products/new" }} />
+      <AdminPageHeader eyebrow="CMS" title="Landing Pages" description={`${landingProducts.length} landing page${landingProducts.length === 1 ? "" : "s"} for campaign traffic.`} action={{ label: "New Landing Page", href: "/admin/products/new" }} />
 
       {landingProducts.length === 0 ? (
         <AdminEmptyState title="No landing pages yet" description="Create a product with page type set to Landing to use it for ad traffic." action={{ label: "Create Landing Page", href: "/admin/products/new" }} />

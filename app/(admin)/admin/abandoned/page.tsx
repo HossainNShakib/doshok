@@ -20,13 +20,13 @@ export default async function AdminAbandonedPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead>Customer</TableHead>
             <TableHead>Phone</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Step</TableHead>
             <TableHead>Coupon</TableHead>
             <TableHead>Est. Value</TableHead>
-            <TableHead>Product</TableHead>
+            <TableHead>Source</TableHead>
             <TableHead>Contacted</TableHead>
             <TableHead>Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -35,24 +35,24 @@ export default async function AdminAbandonedPage() {
         <TableBody>
           {abandoned.map((item) => (
             <TableRow key={item.id}>
-              <TableCell>{item.name || "-"}</TableCell>
-              <TableCell className="font-mono">{item.phone || "-"}</TableCell>
-              <TableCell>{item.email || "-"}</TableCell>
+              <TableCell className="font-medium">{item.name || "—"}</TableCell>
+              <TableCell className="font-mono text-sm">{item.phone || "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{item.email || "—"}</TableCell>
               <TableCell>
-                <Badge variant="secondary">{item.step}</Badge>
+                <Badge variant="secondary" className="capitalize">{item.step}</Badge>
               </TableCell>
-              <TableCell className="font-mono text-sm">
-                {item.couponCode || "-"}
-              </TableCell>
-              <TableCell>
-                {item.total > 0 ? `৳${item.total.toLocaleString()}` : "-"}
+              <TableCell className="font-mono text-sm">{item.couponCode || "—"}</TableCell>
+              <TableCell className="font-medium tabular-nums">
+                {item.total > 0 ? `৳${item.total.toLocaleString()}` : "—"}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
-                {item.productId ? (
-                  <span className="font-mono text-xs">{item.productId.substring(0, 8)}...</span>
-                ) : item.landingSlug ? (
-                  <span>/{item.landingSlug}</span>
-                ) : "-"}
+                {item.landingSlug ? (
+                  <span className="font-mono">/{item.landingSlug}</span>
+                ) : item.productId ? (
+                  <span>Product page</span>
+                ) : (
+                  "—"
+                )}
               </TableCell>
               <TableCell>
                 <AdminStatusBadge status={item.contacted ? "Contacted" : "Not Contacted"} />

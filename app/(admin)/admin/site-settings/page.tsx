@@ -147,7 +147,7 @@ export default function SiteSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <AdminPageHeader eyebrow="Settings" title="Site Settings" description="Set the brand details and theme preferences customers see across the storefront." />
+      <AdminPageHeader eyebrow="Settings" title="Site Settings" description="Set the brand details and theme preferences customers and admin see across the store." />
 
       <AdminSectionCard title="Brand Info" description="Storefront brand label and short footer description.">
           <div className="space-y-2">

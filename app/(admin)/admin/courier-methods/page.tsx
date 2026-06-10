@@ -152,7 +152,7 @@ export default function AdminCourierMethodsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <AdminPageHeader eyebrow="Settings" title="Courier Methods" description="Loading setup-ready courier providers..." />
+        <AdminPageHeader eyebrow="Operations" title="Courier Methods" description="Loading setup-ready courier providers..." />
         <p className="text-muted-foreground">Loading...</p>
       </div>
     )
@@ -160,7 +160,7 @@ export default function AdminCourierMethodsPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader eyebrow="Settings" title="Courier Methods" description="Configure Pathao, Steadfast, and RedX. Credentials are encrypted. Live courier API integration is setup-ready." />
+      <AdminPageHeader eyebrow="Operations" title="Courier Methods" description="Configure Pathao, Steadfast, and RedX. Credentials are encrypted. Live courier API integration is setup-ready." />
 
       <div className="grid gap-4">
         {methods.map((method) => {

@@ -89,7 +89,7 @@ export default function AdminDeliveryZonesPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader eyebrow="Settings" title="Delivery Zones" description="Control checkout delivery fees by customer area. Names should be short and recognisable." />
+      <AdminPageHeader eyebrow="Operations" title="Delivery Zones" description="Control checkout delivery fees by customer area. Names should be short and recognisable." />
 
       <AdminSectionCard title="Create Delivery Zone" description="Add a new zone with a flat delivery fee charged at checkout.">
           <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-[1fr_160px_auto] md:items-end">

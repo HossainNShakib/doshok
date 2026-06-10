@@ -1,21 +1,19 @@
 import Link from "next/link"
-import { Home, Settings, Wallet, MapPin } from "lucide-react"
+import { Settings, Palette } from "lucide-react"
 import { AdminHubCard, AdminPageHeader } from "@/components/admin/admin-ui"
 
 const sections = [
-  { href: "/admin/homepage", label: "Homepage", icon: Home, desc: "Customize the storefront homepage content and banners" },
-  { href: "/admin/site-settings", label: "Site Settings", icon: Settings, desc: "Configure store name, contact info, and global preferences" },
-  { href: "/admin/payment-methods", label: "Payment Methods", icon: Wallet, desc: "Manage payment providers and checkout options" },
-  { href: "/admin/delivery-zones", label: "Delivery Zones", icon: MapPin, desc: "Set up shipping zones, rates, and delivery areas" },
+  { href: "/admin/site-settings", label: "Site Settings", icon: Settings, desc: "Brand info, contact details, and social media links" },
+  { href: "/admin/site-settings", label: "Theme Settings", icon: Palette, desc: "Accent color, button styles, card radius, and panel tone" },
 ]
 
-export default function SettingsOverviewPage() {
+export default function SettingsPage() {
   return (
     <div className="space-y-6">
-      <AdminPageHeader eyebrow="Settings" title="Settings Hub" description="Configure storefront content, public contact details, checkout methods, and delivery pricing." />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <AdminPageHeader eyebrow="Settings" title="Settings Hub" description="Configure brand details, theme preferences, and store-wide settings." />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sections.map((section) => (
-          <AdminHubCard key={section.href} href={section.href} title={section.label} description={section.desc} icon={section.icon} />
+          <AdminHubCard key={section.href} title={section.label} description={section.desc} icon={section.icon} href="/admin/site-settings" />
         ))}
       </div>
     </div>

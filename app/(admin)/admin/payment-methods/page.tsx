@@ -224,7 +224,7 @@ export default function AdminPaymentMethodsPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader eyebrow="Settings" title="Payment Methods" description="Configure setup-ready payment gateways. Credentials are encrypted. Existing values appear masked for security." />
+      <AdminPageHeader eyebrow="Operations" title="Payment Methods" description="Configure setup-ready payment gateways. Credentials are encrypted. Existing values appear masked for security." />
 
       <div className="grid gap-4">
         {methods.map((method) => {

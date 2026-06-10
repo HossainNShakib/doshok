@@ -80,7 +80,7 @@ export default function AdminHomepagePage() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <AdminPageHeader eyebrow="Settings" title="Homepage Settings" description="Control the storefront hero banner and curated featured product selection." />
+      <AdminPageHeader eyebrow="CMS" title="Homepage Settings" description="Control the storefront hero banner and curated featured product selection." />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <AdminSectionCard title="Hero Banner" description="Set the campaign copy and background image that greet customers on the homepage.">
