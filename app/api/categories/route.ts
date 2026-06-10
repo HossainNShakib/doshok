@@ -7,7 +7,11 @@ import { auth } from "@/lib/auth"
 export async function GET() {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
-    include: { _count: { select: { products: true } } },
+    include: {
+      _count: { select: { products: true } },
+      parent: { select: { name: true } },
+      children: { select: { id: true, name: true } },
+    },
   })
   return success(categories)
 }
@@ -21,7 +25,13 @@ export async function POST(request: NextRequest) {
     const parsed = categorySchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.issues[0]?.message ?? "Invalid input")
 
-    const category = await prisma.category.create({ data: parsed.data })
+    const { parentId, ...rest } = parsed.data
+    const category = await prisma.category.create({
+      data: {
+        ...rest,
+        parentId: parentId || null,
+      },
+    })
     return success(category, 201)
   } catch {
     return error("Failed to create category")

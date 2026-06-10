@@ -5,9 +5,47 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X, User, Search, Package, LogOut } from "lucide-react"
 
+const DEFAULT_QUICK_LINKS = [
+  { label: "Help", href: "/help" },
+  { label: "Policy", href: "/policy" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
+  { label: "FAQ", href: "/faq" },
+  { label: "Size Guide", href: "/size-guide" },
+  { label: "Care Guide", href: "/care-guide" },
+  { label: "Track Order", href: "/track-order" },
+]
+
+function getLabelFromHref(href: string): string {
+  const map: Record<string, string> = {
+    "/products": "Products",
+    "/new-arrivals": "New Arrivals",
+    "/about": "About",
+    "/contact": "Contact",
+    "/faq": "FAQ",
+    "/size-guide": "Size Guide",
+    "/care-guide": "Care Guide",
+    "/track-order": "Track Order",
+    "/privacy": "Privacy Policy",
+    "/terms": "Terms",
+    "/return-policy": "Return Policy",
+    "/delivery": "Delivery",
+    "/shipping": "Shipping",
+    "/cookies": "Cookies",
+    "/help": "Help",
+    "/policy": "Policy",
+    "/stories": "Stories",
+    "/store-locator": "Store Locator",
+    "/gift-cards": "Gift Cards",
+    "/careers": "Careers",
+  }
+  return map[href] || href.replace("/", "").replace(/-/g, " ")
+}
+
 export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
+  const [quickLinks, setQuickLinks] = useState(DEFAULT_QUICK_LINKS)
 
   useEffect(() => {
     setOpen(false)
@@ -17,6 +55,22 @@ export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
     document.body.style.overflow = open ? "hidden" : ""
     return () => { document.body.style.overflow = "" }
   }, [open])
+
+  useEffect(() => {
+    fetch("/api/site-settings")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.data?.headerQuickLinks) {
+          try {
+            const links = JSON.parse(d.data.headerQuickLinks)
+            if (Array.isArray(links) && links.length > 0) {
+              setQuickLinks(links.map((href: string) => ({ label: getLabelFromHref(href), href })))
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <>
@@ -68,14 +122,7 @@ export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
 
             <div className="border-t border-border/50 my-3" />
 
-            {[
-              { href: "/help", label: "Help Hub" },
-              { href: "/policy", label: "Policy Hub" },
-              { href: "/faq", label: "FAQ" },
-              { href: "/size-guide", label: "Size Guide" },
-              { href: "/care-guide", label: "Care Guide" },
-              { href: "/track-order", label: "Track Order" },
-            ].map((link) => (
+            {quickLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

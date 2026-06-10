@@ -92,13 +92,18 @@ model VerificationToken {
 }
 
 model Category {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  slug     String    @unique
-  image    String?
-  products Product[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  image     String?
+  parentId  String?
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([parentId])
 }
 
 model Product {
@@ -293,8 +298,12 @@ model SiteSettings {
   whatsapp        String?
   facebookUrl     String?
   instagramUrl    String?
+  tiktokUrl       String?
+  youtubeUrl      String?
   address         String  @default("We deliver across all districts of Bangladesh. Our operation hub is in Chattogram.")
   footerText      String  @default("Premium Bangladeshi fashion for the modern wardrobe.")
+  footerLinks     String  @default("[]")
+  headerQuickLinks String @default("[]")
   accentColor     String  @default("#364152")
   buttonRadius    String  @default("xl")
   cardRadius      String  @default("1.5rem")
@@ -304,12 +313,18 @@ model SiteSettings {
 }
 
 model HomepageConfig {
-  id               String @id @default("homepage")
-  heroTitle        String @default("Doshok — Style That Speaks")
-  heroSubtitle     String @default("Premium Bangladeshi fashion for the modern wardrobe.")
-  heroImage        String?
-  featuredIds      String @default("[]")
-  updatedAt        DateTime @updatedAt
+  id                    String @id @default("homepage")
+  heroTitle             String @default("Doshok — Style That Speaks")
+  heroSubtitle          String @default("Premium Bangladeshi fashion for the modern wardrobe.")
+  heroImage             String?
+  featuredIds           String @default("[]")
+  announcementBarText   String @default("")
+  announcementBarEnabled Boolean @default(false)
+  promoBannerText       String @default("")
+  promoBannerImage      String?
+  promoBannerLink       String?
+  promoBannerEnabled    Boolean @default(false)
+  updatedAt             DateTime @updatedAt
 }
 
 model PaymentMethodSetting {

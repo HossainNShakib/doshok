@@ -25,6 +25,7 @@ type HomeCategory = {
 async function getHomepageData() {
   const [categories, latestProducts, saleProducts, featuredConfig] = await Promise.all([
     prisma.category.findMany({
+      where: { parentId: null },
       orderBy: { name: "asc" },
       take: 8,
     }),

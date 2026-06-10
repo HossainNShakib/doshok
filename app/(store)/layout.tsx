@@ -5,7 +5,15 @@ import { auth } from "@/lib/auth"
 import { CartCount } from "@/components/store/cart-count"
 import { MobileMenu } from "@/components/store/mobile-menu"
 import { SiteFooter } from "@/components/store/site-footer"
+import { AnnouncementBar } from "@/components/store/announcement-bar"
 import styles from "./layout.module.css"
+
+const DEFAULT_QUICK_LINKS = [
+  { label: "Help", href: "/help" },
+  { label: "Policy", href: "/policy" },
+  { label: "About Doshok", href: "/about" },
+  { label: "Track Order", href: "/track-order" },
+]
 
 async function getHeaderCategories() {
   try {
@@ -18,14 +26,55 @@ async function getHeaderCategories() {
   }
 }
 
+async function getHeaderLinks() {
+  try {
+    const settings = await prisma.siteSettings.findUnique({ where: { id: "default" } })
+    if (settings?.headerQuickLinks) {
+      const links = JSON.parse(settings.headerQuickLinks)
+      if (Array.isArray(links) && links.length > 0) return links.map((href: string) => ({ label: getLabelFromHref(href), href }))
+    }
+  } catch {}
+  return DEFAULT_QUICK_LINKS
+}
+
+function getLabelFromHref(href: string): string {
+  const map: Record<string, string> = {
+    "/products": "Products",
+    "/new-arrivals": "New Arrivals",
+    "/about": "About Doshok",
+    "/contact": "Contact",
+    "/faq": "FAQ",
+    "/size-guide": "Size Guide",
+    "/care-guide": "Care Guide",
+    "/track-order": "Track Order",
+    "/privacy": "Privacy Policy",
+    "/terms": "Terms",
+    "/return-policy": "Return Policy",
+    "/delivery": "Delivery",
+    "/shipping": "Shipping",
+    "/cookies": "Cookies",
+    "/help": "Help",
+    "/policy": "Policy",
+    "/stories": "Stories",
+    "/store-locator": "Store Locator",
+    "/gift-cards": "Gift Cards",
+    "/careers": "Careers",
+  }
+  return map[href] || href.replace("/", "").replace(/-/g, " ")
+}
+
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const categories = await getHeaderCategories()
+  const [categories, quickLinks] = await Promise.all([
+    getHeaderCategories(),
+    getHeaderLinks(),
+  ])
   const session = await auth()
   const isLoggedIn = !!session?.user
 
   return (
     <div className={styles.shell}>
       <div className={styles.page}>
+        <AnnouncementBar />
         <header>
           <div className={styles.topbar}>
             <div className={styles.topbarLeft}>
@@ -33,10 +82,9 @@ export default async function StoreLayout({ children }: { children: React.ReactN
               <span>Inside Chattogram delivery available</span>
             </div>
             <div className={styles.topbarRight}>
-              <Link href="/help">Help</Link>
-              <Link href="/policy">Policy</Link>
-              <Link href="/about">About Doshok</Link>
-              <Link href="/track-order">Track Order</Link>
+              {quickLinks.map((link) => (
+                <Link key={link.href} href={link.href}>{link.label}</Link>
+              ))}
               <span className={styles.divider} />
               {isLoggedIn ? (
                 <>

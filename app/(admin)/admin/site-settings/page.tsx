@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui"
+import { Plus, Trash2 } from "lucide-react"
 
+type FooterLink = { label: string; href: string; group: string }
 type Settings = {
   brandName: string
   supportEmail: string
@@ -17,8 +19,11 @@ type Settings = {
   whatsapp: string
   facebookUrl: string
   instagramUrl: string
+  tiktokUrl: string
+  youtubeUrl: string
   address: string
   footerText: string
+  footerLinks: string
   accentColor: string
   buttonRadius: string
   cardRadius: string
@@ -75,10 +80,13 @@ const ADMIN_TONES = [
   { value: "stone", label: "Stone" },
 ]
 
+const LINK_GROUPS = ["Shop", "Help", "Policy"]
+
 export default function SiteSettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [footerLinks, setFooterLinks] = useState<FooterLink[]>([])
 
   useEffect(() => {
     fetch("/api/site-settings")
@@ -93,8 +101,11 @@ export default function SiteSettingsPage() {
             whatsapp: "",
             facebookUrl: "",
             instagramUrl: "",
+            tiktokUrl: "",
+            youtubeUrl: "",
             address: "",
             footerText: "",
+            footerLinks: "[]",
             accentColor: "#364152",
             buttonRadius: "xl",
             cardRadius: "1.5rem",
@@ -105,6 +116,12 @@ export default function SiteSettingsPage() {
             cleaned[key] = d.data[key] ?? defaults[key]
           }
           setSettings(cleaned)
+          try {
+            const parsed = JSON.parse(cleaned.footerLinks || "[]")
+            setFooterLinks(Array.isArray(parsed) ? parsed : [])
+          } catch {
+            setFooterLinks([])
+          }
         }
       })
       .catch(() => toast.error("Failed to load settings"))
@@ -115,6 +132,20 @@ export default function SiteSettingsPage() {
     setSettings((prev) => prev ? { ...prev, [field]: value } : prev)
   }
 
+  function addFooterLink() {
+    setFooterLinks([...footerLinks, { label: "", href: "", group: "Shop" }])
+  }
+
+  function updateFooterLink(index: number, field: keyof FooterLink, value: string) {
+    const updated = [...footerLinks]
+    updated[index] = { ...updated[index], [field]: value }
+    setFooterLinks(updated)
+  }
+
+  function removeFooterLink(index: number) {
+    setFooterLinks(footerLinks.filter((_, i) => i !== index))
+  }
+
   async function handleSave() {
     if (!settings) return
     setSaving(true)
@@ -122,7 +153,7 @@ export default function SiteSettingsPage() {
       const res = await fetch("/api/site-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ ...settings, footerLinks: JSON.stringify(footerLinks) }),
       })
       const d = await res.json()
       if (d.success) {
@@ -269,7 +300,7 @@ export default function SiteSettingsPage() {
             <Input id="whatsapp" value={settings.whatsapp} onChange={(e) => update("whatsapp", e.target.value)} placeholder="+880 17XXXXXXXX" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address">Service area</Label>
+            <Label htmlFor="address">Service area / Address</Label>
             <Textarea id="address" value={settings.address} onChange={(e) => update("address", e.target.value)} rows={2} placeholder="e.g. All districts across Bangladesh" />
           </div>
       </AdminSectionCard>
@@ -283,6 +314,53 @@ export default function SiteSettingsPage() {
             <Label htmlFor="instagramUrl">Instagram URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
             <Input id="instagramUrl" value={settings.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} placeholder="https://instagram.com/doshok" />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="tiktokUrl">TikTok URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input id="tiktokUrl" value={settings.tiktokUrl} onChange={(e) => update("tiktokUrl", e.target.value)} placeholder="https://tiktok.com/@doshok" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="youtubeUrl">YouTube URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input id="youtubeUrl" value={settings.youtubeUrl} onChange={(e) => update("youtubeUrl", e.target.value)} placeholder="https://youtube.com/@doshok" />
+          </div>
+      </AdminSectionCard>
+
+      <AdminSectionCard title="Footer Menu Links" description="Custom links shown in the footer columns. Link to internal paths or external URLs.">
+        <div className="space-y-3">
+          {footerLinks.length === 0 && (
+            <p className="text-sm text-muted-foreground">No custom links added yet. Footer will show default links.</p>
+          )}
+          {footerLinks.map((link, i) => (
+            <div key={i} className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Group</Label>
+                <Select value={link.group} onValueChange={(v) => v && updateFooterLink(i, "group", v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LINK_GROUPS.map((g) => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Label</Label>
+                <Input value={link.label} onChange={(e) => updateFooterLink(i, "label", e.target.value)} placeholder="e.g. Privacy Policy" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">URL</Label>
+                <Input value={link.href} onChange={(e) => updateFooterLink(i, "href", e.target.value)} placeholder="/privacy or https://..." />
+              </div>
+              <Button type="button" size="icon" variant="ghost" onClick={() => removeFooterLink(i)} className="shrink-0 mb-1">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button type="button" variant="outline" size="sm" onClick={addFooterLink} className="mt-2">
+            <Plus className="h-4 w-4 mr-1" /> Add Link
+          </Button>
+        </div>
       </AdminSectionCard>
 
       <div className="flex gap-3 pt-2">

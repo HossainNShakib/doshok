@@ -14,41 +14,44 @@ async function getSettings() {
   }
 }
 
-const footerColumns = [
-  {
-    title: "Shop",
-    links: [
-      ["All Products", "/products"],
-      ["New Arrivals", "/new-arrivals"],
-      ["About", "/about"],
-      ["Contact", "/contact"],
-    ],
-  },
-  {
-    title: "Help",
-    links: [
-      ["FAQ", "/faq"],
-      ["Size Guide", "/size-guide"],
-      ["Care Guide", "/care-guide"],
-      ["Track Order", "/track-order"],
-    ],
-  },
-  {
-    title: "Policy",
-    links: [
-      ["Privacy Policy", "/privacy-policy"],
-      ["Terms & Conditions", "/terms"],
-      ["Return Policy", "/return-policy"],
-      ["Delivery", "/delivery"],
-    ],
-  },
+const DEFAULT_SHOP_LINKS = [
+  ["All Products", "/products"],
+  ["New Arrivals", "/new-arrivals"],
+  ["About", "/about"],
+  ["Contact", "/contact"],
+]
+
+const DEFAULT_HELP_LINKS = [
+  ["FAQ", "/faq"],
+  ["Size Guide", "/size-guide"],
+  ["Care Guide", "/care-guide"],
+  ["Track Order", "/track-order"],
+]
+
+const DEFAULT_POLICY_LINKS = [
+  ["Privacy Policy", "/privacy"],
+  ["Terms & Conditions", "/terms"],
+  ["Return Policy", "/return-policy"],
+  ["Delivery", "/delivery"],
 ]
 
 export async function SiteFooter() {
   const settings = await getSettings()
+
+  let footerLinks: { label: string; href: string; group: string }[] = []
+  try {
+    footerLinks = JSON.parse(settings?.footerLinks || "[]")
+  } catch {}
+
+  const shopLinks = footerLinks.filter(l => l.group === "Shop").map(l => [l.label, l.href] as [string, string])
+  const helpLinks = footerLinks.filter(l => l.group === "Help").map(l => [l.label, l.href] as [string, string])
+  const policyLinks = footerLinks.filter(l => l.group === "Policy").map(l => [l.label, l.href] as [string, string])
+
   const socials = [
     ["f", settings?.facebookUrl, "Facebook"],
     ["◎", settings?.instagramUrl, "Instagram"],
+    ["T", settings?.tiktokUrl, "TikTok"],
+    ["▶", settings?.youtubeUrl, "YouTube"],
   ].filter((social): social is [string, string, string] => Boolean(social[1]))
 
   return (
@@ -58,7 +61,7 @@ export async function SiteFooter() {
           <Link href="/" className={styles.logo}>
             <span className={styles.mark}>D</span>
             <span className={styles.word}>
-              Doshok<span className="text-[#364152]">.</span>com
+              {settings?.brandName || "Doshok"}<span className="text-[#364152]">.</span>com
             </span>
           </Link>
           <div className={styles.brandTag}>Style That Speaks</div>
@@ -75,6 +78,11 @@ export async function SiteFooter() {
               <span>Email: {settings.supportEmail}</span>
             </div>
           )}
+          {settings?.address && (
+            <div className={styles.contact}>
+              <span>{settings.address}</span>
+            </div>
+          )}
           {socials.length > 0 && (
             <div className={styles.socials}>
               {socials.map(([label, href, name]) => (
@@ -86,22 +94,81 @@ export async function SiteFooter() {
           )}
         </div>
 
-        {footerColumns.map((column) => (
-          <div key={column.title} className={styles.footCol}>
-            <h4>{column.title}</h4>
-            <ul>
-              {column.links.map(([label, href]) => (
-                <li key={label}>
-                  <Link href={href}>
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {(shopLinks.length > 0 || helpLinks.length > 0 || policyLinks.length > 0) ? (
+          <>
+            {shopLinks.length > 0 && (
+              <div key="shop" className={styles.footCol}>
+                <h4>Shop</h4>
+                <ul>
+                  {shopLinks.map(([label, href]) => (
+                    <li key={label}>
+                      <Link href={href}>{label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {helpLinks.length > 0 && (
+              <div key="help" className={styles.footCol}>
+                <h4>Help</h4>
+                <ul>
+                  {helpLinks.map(([label, href]) => (
+                    <li key={label}>
+                      <Link href={href}>{label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {policyLinks.length > 0 && (
+              <div key="policy" className={styles.footCol}>
+                <h4>Policy</h4>
+                <ul>
+                  {policyLinks.map(([label, href]) => (
+                    <li key={label}>
+                      <Link href={href}>{label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className={styles.footCol}>
+              <h4>Shop</h4>
+              <ul>
+                {DEFAULT_SHOP_LINKS.map(([label, href]) => (
+                  <li key={label}>
+                    <Link href={href}>{label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={styles.footCol}>
+              <h4>Help</h4>
+              <ul>
+                {DEFAULT_HELP_LINKS.map(([label, href]) => (
+                  <li key={label}>
+                    <Link href={href}>{label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={styles.footCol}>
+              <h4>Policy</h4>
+              <ul>
+                {DEFAULT_POLICY_LINKS.map(([label, href]) => (
+                  <li key={label}>
+                    <Link href={href}>{label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
       </div>
-      <div className={styles.copyright}>© {new Date().getFullYear()}, Doshok.com</div>
+      <div className={styles.copyright}>© {new Date().getFullYear()}, {settings?.brandName || "Doshok"}.com. All rights reserved.</div>
     </footer>
   )
 }

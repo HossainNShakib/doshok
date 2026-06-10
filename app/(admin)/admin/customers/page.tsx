@@ -1,69 +1,23 @@
 import Link from "next/link"
-import { prisma } from "@/lib/prisma"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AdminEmptyState, AdminPageHeader, AdminStatusBadge, AdminTableShell } from "@/components/admin/admin-ui"
-import { User } from "lucide-react"
+import { Users, ShoppingCart, MapPin, Star } from "lucide-react"
+import { AdminHubCard, AdminPageHeader } from "@/components/admin/admin-ui"
 
-export default async function AdminCustomersPage() {
-  const customers = await prisma.user.findMany({
-    where: { role: "customer" },
-    include: {
-      _count: { select: { orders: true, addresses: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  })
+const sections = [
+  { href: "/admin/customers/list", label: "Customer List", icon: Users, desc: "View and manage registered customers and their profiles", badge: "Active" as const },
+  { href: "/admin/customers/orders", label: "Customer Orders", icon: ShoppingCart, desc: "Browse orders filtered by customer account", badge: "Active" as const },
+  { href: "/admin/customers/addresses", label: "Customer Addresses", icon: MapPin, desc: "Manage saved delivery addresses per customer", badge: "Active" as const },
+  { href: "/admin/reviews", label: "Reviews", icon: Star, desc: "Product reviews and ratings management", badge: "Coming later" as const },
+]
 
+export default function CustomersHubPage() {
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        eyebrow="Customers"
-        title="Customer List"
-        description={`${customers.length} registered customer${customers.length === 1 ? "" : "s"} in the system.`}
-      />
-
-      {customers.length === 0 ? (
-        <AdminEmptyState title="No customers yet" description="Registered customers will appear here after they create an account." />
-      ) : (
-        <AdminTableShell>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead className="text-center">Orders</TableHead>
-                <TableHead className="text-center">Addresses</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100">
-                        <User className="h-4 w-4 text-neutral-500" />
-                      </div>
-                      <span className="font-medium">{customer.name || `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || "—"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{customer.email || "—"}</TableCell>
-                  <TableCell className="font-mono text-sm">{customer.phone || "—"}</TableCell>
-                  <TableCell className="text-center tabular-nums">{customer._count.orders}</TableCell>
-                  <TableCell className="text-center tabular-nums">{customer._count.addresses}</TableCell>
-                  <TableCell>
-                    <AdminStatusBadge status={customer.status} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                    {customer.createdAt.toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </AdminTableShell>
-      )}
+      <AdminPageHeader eyebrow="Customers" title="Customers Hub" description="Manage customer accounts, order history, saved addresses, and product reviews." />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {sections.map((section) => (
+          <AdminHubCard key={section.href} href={section.href} title={section.label} description={section.desc} icon={section.icon} badge={section.badge} />
+        ))}
+      </div>
     </div>
   )
 }

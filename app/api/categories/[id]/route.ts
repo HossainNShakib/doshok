@@ -14,9 +14,18 @@ export async function PATCH(
     if (!session?.user) return error("Unauthorized", 401)
 
     const body = await request.json()
+    const { parentId, ...rest } = body
+
+    if (parentId === id) {
+      return error("A category cannot be its own parent.")
+    }
+
     const category = await prisma.category.update({
       where: { id },
-      data: body,
+      data: {
+        ...rest,
+        parentId: parentId || null,
+      },
     })
     return success(category)
   } catch {
@@ -38,6 +47,12 @@ export async function DELETE(
     if (productCount > 0) {
       return error(`Cannot delete category with ${productCount} product(s). Remove or reassign them first.`)
     }
+
+    const childCount = await prisma.category.count({ where: { parentId: id } })
+    if (childCount > 0) {
+      return error(`Cannot delete category with ${childCount} sub-category(s). Remove or reassign them first.`)
+    }
+
     await prisma.category.delete({ where: { id } })
     return success({ deleted: true })
   } catch {

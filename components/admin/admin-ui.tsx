@@ -183,20 +183,33 @@ export function AdminHubCard({
   title,
   description,
   icon: Icon,
+  badge,
 }: {
   href: string
   title: string
   description: string
   icon: LucideIcon
+  badge?: "Active" | "Ready" | "Coming later"
 }) {
   return (
     <Link href={href}>
       <Card className="h-full rounded-[1.5rem] border-black/5 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
         <CardContent className="p-6">
-          <span className="mb-5 grid h-12 w-12 place-items-center rounded-2xl bg-neutral-950 text-white">
-            <Icon className="h-5 w-5" />
-          </span>
-          <h3 className="text-lg font-black tracking-[-0.02em]">{title}</h3>
+          <div className="flex items-start justify-between gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-neutral-950 text-white">
+              <Icon className="h-5 w-5" />
+            </span>
+            {badge && (
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] ${
+                badge === "Active" ? "bg-emerald-100 text-emerald-700" :
+                badge === "Ready" ? "bg-blue-100 text-blue-700" :
+                "bg-neutral-100 text-neutral-500"
+              }`}>
+                {badge}
+              </span>
+            )}
+          </div>
+          <h3 className="mt-4 text-lg font-black tracking-[-0.02em]">{title}</h3>
           <p className="mt-2 text-sm leading-6 text-neutral-500">{description}</p>
         </CardContent>
       </Card>

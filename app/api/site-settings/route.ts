@@ -30,10 +30,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message ?? "Invalid data" }, { status: 400 })
     }
 
+    const { footerLinks, headerQuickLinks, ...rest } = parsed.data
     const settings = await prisma.siteSettings.upsert({
       where: { id: "default" },
-      update: parsed.data,
-      create: { id: "default", ...parsed.data },
+      update: { ...rest, footerLinks: footerLinks ?? "[]", headerQuickLinks: headerQuickLinks ?? "[]" },
+      create: { id: "default", ...rest, footerLinks: footerLinks ?? "[]", headerQuickLinks: headerQuickLinks ?? "[]" },
     })
 
     return NextResponse.json({ success: true, data: settings })

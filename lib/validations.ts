@@ -66,6 +66,7 @@ export const categorySchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
   image: z.string().optional(),
+  parentId: z.string().optional().nullable(),
 })
 
 export const addressSchema = z.object({
@@ -156,8 +157,12 @@ export const siteSettingsSchema = z.object({
   whatsapp: z.string().optional().or(z.literal("")),
   facebookUrl: z.string().optional().or(z.literal("")),
   instagramUrl: z.string().optional().or(z.literal("")),
+  tiktokUrl: z.string().optional().or(z.literal("")),
+  youtubeUrl: z.string().optional().or(z.literal("")),
   address: z.string().min(1),
   footerText: z.string().min(1),
+  footerLinks: z.string().optional().default("[]"),
+  headerQuickLinks: z.string().optional().default("[]"),
   accentColor: z.string().optional().default("#364152"),
   buttonRadius: z.string().optional().default("xl"),
   cardRadius: z.string().optional().default("1.5rem"),

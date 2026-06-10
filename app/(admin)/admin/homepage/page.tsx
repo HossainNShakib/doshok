@@ -17,7 +17,7 @@ export default function AdminHomepagePage() {
   const [heroSubtitle, setHeroSubtitle] = useState("")
   const [heroImage, setHeroImage] = useState("")
   const [featuredIds, setFeaturedIds] = useState<string[]>([])
-  const [products, setProducts] = useState<{ id: string; name: string }[]>([])
+  const [products, setProducts] = useState<{ id: string; name: string; price: number }[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -126,7 +126,7 @@ export default function AdminHomepagePage() {
                   <SelectContent>
                     {products.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.name}
+                        {p.name} — ৳{p.price.toLocaleString()}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -142,7 +142,7 @@ export default function AdminHomepagePage() {
                   const product = products.find((p) => p.id === id)
                   return (
                     <div key={id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                      <span>{product?.name ?? id}</span>
+                      <span>{product ? `${product.name} — ৳${product.price.toLocaleString()}` : id}</span>
                       <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeFeatured(id)}>
                         <X className="h-3 w-3" />
                       </Button>
