@@ -3,8 +3,8 @@
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useSession, signOut } from "next-auth/react"
-import { User, Package, Settings, LogOut, AlertTriangle, X, MapPin } from "lucide-react"
-import { useState, useEffect } from "react"
+import { User, Package, Settings, LogOut, AlertTriangle, X, MapPin, Loader2 } from "lucide-react"
+import { useState } from "react"
 
 function AccountLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -14,18 +14,23 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isLoginPage = pathname === "/account/login"
 
-  useEffect(() => {
-    if (status === "unauthenticated" && !isLoginPage) {
-      router.push("/auth/login")
-    }
-  }, [status, isLoginPage, router])
-
-  if (status === "loading") {
-    return <div className="container mx-auto container-px py-8 md:py-12" />
+  async function handleLogout() {
+    await signOut({ redirect: false })
+    router.push("/auth/login")
+    router.refresh()
   }
 
-  if (!session?.user && !isLoginPage) {
-    return <div className="container mx-auto container-px py-8 md:py-12" />
+  if (status === "loading" || status === "unauthenticated") {
+    return (
+      <div className="container mx-auto container-px py-8 md:py-12">
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">
+            {status === "loading" ? "Loading..." : "Redirecting to login..."}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   const isVerified = !!session?.user?.emailVerified
@@ -37,12 +42,6 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
     { href: "/account/addresses", label: "Addresses", icon: MapPin },
     { href: "/account/profile", label: "Profile", icon: Settings },
   ]
-
-  async function handleLogout() {
-    await signOut({ redirect: false })
-    router.push("/auth/login")
-    router.refresh()
-  }
 
   return (
     <div className="container mx-auto container-px py-8 md:py-12">
@@ -69,7 +68,6 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
         children
       ) : (
         <div className="flex items-start gap-8 lg:gap-12">
-          {/* Sidebar */}
           <aside className="w-56 lg:w-64 shrink-0 hidden md:block">
             <nav className="space-y-1 sticky top-24">
               <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground font-medium mb-4 px-3">
@@ -104,7 +102,6 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
             </nav>
           </aside>
 
-          {/* Mobile nav tabs */}
           <div className="md:hidden w-full">
             <div className="flex gap-1 bg-muted/50 rounded-xl p-1 mb-6 overflow-x-auto">
               {navLinks.map((link) => {
@@ -129,7 +126,6 @@ function AccountLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="flex-1 min-w-0">{children}</div>
           </div>
 
-          {/* Desktop content */}
           <div className="flex-1 min-w-0 hidden md:block">{children}</div>
         </div>
       )}

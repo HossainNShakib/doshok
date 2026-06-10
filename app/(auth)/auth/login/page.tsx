@@ -77,7 +77,8 @@ function LoginForm() {
       }
 
       toast.success("Signed in successfully")
-      router.push(callbackUrl)
+      router.refresh()
+      router.replace(callbackUrl)
     } catch {
       toast.error("Something went wrong")
     } finally {

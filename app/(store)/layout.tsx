@@ -5,7 +5,6 @@ import { auth } from "@/lib/auth"
 import { CartCount } from "@/components/store/cart-count"
 import { MobileMenu } from "@/components/store/mobile-menu"
 import { SiteFooter } from "@/components/store/site-footer"
-import { StoreProviders } from "@/components/providers/store-providers"
 import styles from "./layout.module.css"
 
 async function getHeaderCategories() {
@@ -106,9 +105,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         </header>
 
         <main>
-          <StoreProviders>
-            {children}
-          </StoreProviders>
+          {children}
         </main>
 
         <SiteFooter />
