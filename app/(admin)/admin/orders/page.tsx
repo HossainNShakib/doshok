@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AdminEmptyState, AdminPageHeader, AdminStatusBadge, AdminTableShell } from "@/components/admin/admin-ui"
 import { Button } from "@/components/ui/button"
@@ -73,7 +72,7 @@ export default function AdminOrdersPage() {
   const totalPages = data?.pages ?? 1
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader
         eyebrow="Sales"
         title="Orders"
@@ -86,10 +85,10 @@ export default function AdminOrdersPage() {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
+            className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
               status === f.value
-                ? "bg-neutral-950 text-white"
-                : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "bg-white border border-slate-200/60 text-slate-500 hover:bg-slate-50"
             }`}
           >
             {f.label}
@@ -98,7 +97,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-neutral-400">Loading...</div>
+        <div className="flex items-center justify-center py-16 text-sm text-slate-400">Loading...</div>
       ) : orders.length === 0 ? (
         <AdminEmptyState title="No orders found" description="Orders matching this filter will appear here." />
       ) : (
@@ -106,42 +105,42 @@ export default function AdminOrdersPage() {
           <AdminTableShell>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="border-slate-100">
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Order</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Customer</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Items</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Total</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Payment</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Method</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Status</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Date</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">{order.orderNumber}</TableCell>
+                  <TableRow key={order.id} className="border-slate-50 hover:bg-slate-50/60">
+                    <TableCell className="font-mono text-[11px] font-semibold text-slate-700">{order.orderNumber}</TableCell>
                     <TableCell>
-                      <div className="text-sm font-medium">{order.customerName}</div>
-                      <div className="text-xs text-muted-foreground">{order.customerPhone}</div>
+                      <div className="text-xs font-semibold text-slate-800">{order.customerName}</div>
+                      <div className="text-[10px] text-slate-400">{order.customerPhone}</div>
                     </TableCell>
-                    <TableCell>{order.items.reduce((s, i) => s + i.quantity, 0)}</TableCell>
-                    <TableCell>৳{order.total.toLocaleString()}</TableCell>
+                    <TableCell className="text-center text-xs tabular-nums text-slate-600">{order.items.reduce((s, i) => s + i.quantity, 0)}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold tabular-nums text-slate-800">৳{order.total.toLocaleString()}</TableCell>
                     <TableCell>
                       <AdminStatusBadge status={order.paymentStatus === "paid" ? "Paid" : "Pending"} type="payment" />
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-[10px] text-slate-500 font-medium">
                       {order.paymentMethod.toUpperCase()}
                     </TableCell>
                     <TableCell>
                       <AdminStatusBadge status={order.orderStatus} type="order" />
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-slate-500 whitespace-nowrap">
                       {new Date(order.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/admin/orders/${order.id}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-7 px-2.5 hover:bg-muted hover:text-foreground">View</Link>
+                      <Link href={`/admin/orders/${order.id}`} className="inline-flex items-center justify-center rounded-md text-[11px] font-semibold h-7 px-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors">View</Link>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -151,14 +150,14 @@ export default function AdminOrdersPage() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1}>
-                <ChevronLeft className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page <= 1} className="h-8 rounded-lg text-xs">
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="text-sm font-medium text-neutral-500">
+              <span className="text-xs font-medium text-slate-500">
                 Page {page} of {totalPages}
               </span>
-              <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages}>
-                <ChevronRight className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages} className="h-8 rounded-lg text-xs">
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
           )}

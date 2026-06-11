@@ -62,7 +62,7 @@ export default function AdminCouponsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader eyebrow="Commerce" title="Coupons" description={`${coupons.length} promotion code${coupons.length === 1 ? "" : "s"} available for campaigns.`} action={{ label: "New Coupon", href: "/admin/coupons/new" }} backHref="/admin/commerce" />
 
       {coupons.length === 0 ? (
@@ -71,61 +71,59 @@ export default function AdminCouponsPage() {
       <AdminTableShell>
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Discount</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Min Order</TableHead>
-            <TableHead>Used</TableHead>
-            <TableHead>Expires</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+          <TableRow className="border-slate-100">
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Code</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Discount</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Type</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Min Order</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Used</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Expires</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Status</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {coupons.map((c) => {
             const expired = isExpired(c)
             return (
-              <TableRow key={c.id}>
-                <TableCell className="font-mono font-bold">{c.code}</TableCell>
-                <TableCell>
+              <TableRow key={c.id} className="border-slate-50 hover:bg-slate-50/60">
+                <TableCell className="font-mono text-[11px] font-bold text-slate-800">{c.code}</TableCell>
+                <TableCell className="text-xs font-semibold tabular-nums text-slate-800">
                   {c.type === "percent" ? `${c.discount}%` : `৳${c.discount}`}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{c.type}</TableCell>
-                <TableCell>৳{c.minOrder.toLocaleString()}</TableCell>
-                <TableCell>
+                <TableCell className="text-xs text-slate-500">{c.type}</TableCell>
+                <TableCell className="text-xs tabular-nums text-slate-600">৳{c.minOrder.toLocaleString()}</TableCell>
+                <TableCell className="text-center text-xs tabular-nums text-slate-600">
                   {c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="text-xs">
                   {c.expiresAt ? (
-                    <span className={expired ? "text-destructive" : ""}>
+                    <span className={expired ? "text-red-500 font-medium" : "text-slate-600"}>
                       {new Date(c.expiresAt).toLocaleDateString()}
                     </span>
-                  ) : "-"}
+                  ) : <span className="text-slate-400">—</span>}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1 flex-wrap">
                     <button onClick={() => toggleActive(c.id, c.active)} className="cursor-pointer">
                       <AdminStatusBadge status={c.active} />
                     </button>
-                    {expired && (
-                      <AdminStatusBadge status="Expired" />
-                    )}
+                    {expired && <AdminStatusBadge status="Expired" />}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <Link
                       href={`/admin/coupons/${c.id}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl hover:bg-muted"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Link>
                     <button
                       onClick={() => handleDelete(c.id, c.code)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl hover:bg-destructive/10 text-destructive"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </TableCell>

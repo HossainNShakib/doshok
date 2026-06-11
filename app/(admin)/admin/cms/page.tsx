@@ -13,9 +13,9 @@ const sections = [
 
 export default function CMSPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader eyebrow="CMS" title="CMS Hub" description="Manage storefront content, static pages, campaigns, and informational blocks." />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {sections.map((section) => (
           <AdminHubCard key={section.href} href={section.href} title={section.label} description={section.desc} icon={section.icon} />
         ))}

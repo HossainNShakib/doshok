@@ -9,7 +9,7 @@ export default async function AdminAbandonedPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader eyebrow="Sales" title="Abandoned Checkouts" description={`${abandoned.length} checkout lead${abandoned.length === 1 ? "" : "s"} captured before order completion.`} />
 
       {abandoned.length === 0 ? (
@@ -18,51 +18,39 @@ export default async function AdminAbandonedPage() {
       <AdminTableShell>
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Customer</TableHead>
-            <TableHead>Phone</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Step</TableHead>
-            <TableHead>Coupon</TableHead>
-            <TableHead>Est. Value</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Contacted</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+          <TableRow className="border-slate-100">
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Customer</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Phone</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Email</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Step</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Est. Value</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Contacted</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Date</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {abandoned.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.name || "—"}</TableCell>
-              <TableCell className="font-mono text-sm">{item.phone || "—"}</TableCell>
-              <TableCell className="text-muted-foreground">{item.email || "—"}</TableCell>
+            <TableRow key={item.id} className="border-slate-50 hover:bg-slate-50/60">
+              <TableCell className="text-xs font-semibold text-slate-800">{item.name || "—"}</TableCell>
+              <TableCell className="font-mono text-[11px] text-slate-600">{item.phone || "—"}</TableCell>
+              <TableCell className="text-xs text-slate-500">{item.email || "—"}</TableCell>
               <TableCell>
                 <AdminStatusBadge status={item.step} />
               </TableCell>
-              <TableCell className="font-mono text-sm">{item.couponCode || "—"}</TableCell>
-              <TableCell className="font-medium tabular-nums">
+              <TableCell className="text-xs font-semibold tabular-nums text-slate-800">
                 {item.total > 0 ? `৳${item.total.toLocaleString()}` : "—"}
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
-                {item.landingSlug ? (
-                  <span className="font-mono">/{item.landingSlug}</span>
-                ) : item.productId ? (
-                  <span>Product page</span>
-                ) : (
-                  "—"
-                )}
               </TableCell>
               <TableCell>
                 <AdminStatusBadge status={item.contacted ? "Contacted" : "Pending"} />
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+              <TableCell className="text-xs text-slate-500 whitespace-nowrap">
                 {item.createdAt.toLocaleDateString()}
               </TableCell>
               <TableCell className="text-right">
                 <Link
                   href={`/admin/abandoned/${item.id}`}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium h-7 px-2.5 hover:bg-muted hover:text-foreground"
+                  className="inline-flex items-center justify-center rounded-md text-[11px] font-semibold h-7 px-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                 >
                   Details
                 </Link>

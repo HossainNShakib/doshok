@@ -1,15 +1,14 @@
 "use client"
 
-import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui"
-import { Plus, Trash2, ExternalLink, ArrowRight, ArrowLeft } from "lucide-react"
+import { Plus, Trash2, Link2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type FooterLinkItem = { label: string; href: string; group: string }
 type MenuLink = { label: string; href: string }
@@ -43,6 +42,78 @@ const VALID_INTERNAL_PATHS = [
   { value: "/gift-cards", label: "/gift-cards — Gift Cards" },
   { value: "/careers", label: "/careers — Careers" },
 ]
+
+function FooterGroupEditor({
+  group,
+  links,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  group: "Shop" | "Help" | "Policy"
+  links: MenuLink[]
+  onAdd: () => void
+  onUpdate: (index: number, field: "label" | "href", value: string) => void
+  onRemove: (index: number) => void
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-xs font-semibold text-slate-700">Footer — {group}</h3>
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+          {links.length} link{links.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {links.length === 0 && (
+          <p className="text-xs text-slate-400 text-center py-3">No links added. Default {group.toLowerCase()} links will be shown.</p>
+        )}
+        {links.map((link, i) => (
+          <div key={i} className="flex gap-1.5 items-end">
+            <div className="flex-1 space-y-1 min-w-0">
+              <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Label</Label>
+              <Input
+                value={link.label}
+                onChange={(e) => onUpdate(i, "label", e.target.value)}
+                placeholder="e.g. All Products"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="flex-1 space-y-1 min-w-0">
+              <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Path</Label>
+              <Select value={link.href} onValueChange={(v) => v && onUpdate(i, "href", v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {VALID_INTERNAL_PATHS.map((p) => (
+                    <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => onRemove(i)}
+              className="shrink-0 mb-1 h-7 w-7 text-slate-400 hover:text-red-500"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onAdd}
+          className="w-full mt-2 rounded-lg h-8 text-xs font-semibold"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Link
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export default function CMSMenusPage() {
   const [loading, setLoading] = useState(true)
@@ -135,31 +206,32 @@ export default function CMSMenusPage() {
   }
 
   if (loading) {
-    return <p className="text-muted-foreground py-8">Loading menus...</p>
+    return <p className="text-sm text-slate-400 py-8">Loading menus...</p>
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <AdminPageHeader eyebrow="CMS" title="Navigation Menus" description="Configure storefront navigation links shown in the header quick bar and footer columns." backHref="/admin/cms" />
+    <div className="space-y-5">
+      <AdminPageHeader
+        eyebrow="CMS"
+        title="Navigation Menus"
+        description="Configure storefront navigation links shown in the header and footer."
+        backHref="/admin/cms"
+      />
 
-      <Link href="/admin/cms" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-        Back to CMS Hub
-      </Link>
-
-      <AdminSectionCard title="Header Quick Links" description="Links shown in the top bar of the storefront header. Use internal paths only.">
+      <AdminSectionCard
+        title="Header Quick Links"
+        description="Links shown in the top bar of the storefront header."
+      >
         <div className="space-y-2">
           {headerLinks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No header links configured. The default links will be shown.</p>
+            <p className="text-xs text-slate-500">No header links configured. Default links will be shown.</p>
           )}
           {headerLinks.map((href, i) => (
             <div key={i} className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
-                <Label className="text-xs">Page</Label>
+                <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Page</Label>
                 <Select value={href} onValueChange={(v) => v && updateHeaderLinks(i, v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {VALID_INTERNAL_PATHS.map((p) => (
                       <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
@@ -167,124 +239,54 @@ export default function CMSMenusPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="button" size="icon" variant="ghost" onClick={() => removeHeaderLink(i)} className="shrink-0 mb-1">
-                <Trash2 className="h-4 w-4" />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => removeHeaderLink(i)}
+                className="shrink-0 mb-1 h-7 w-7 text-slate-400 hover:text-red-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={addHeaderLink} className="mt-2">
-            <Plus className="h-4 w-4 mr-1" /> Add Link
+          <Button type="button" variant="outline" size="sm" onClick={addHeaderLink} className="mt-2 rounded-lg h-8 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Link
           </Button>
         </div>
       </AdminSectionCard>
 
-      <AdminSectionCard title="Footer Menu — Shop" description="Links shown under the Shop column in the footer.">
-        <div className="space-y-2">
-          {footerShopLinks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No custom links. Default shop links will be shown.</p>
-          )}
-          {footerShopLinks.map((link, i) => (
-            <div key={i} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Label</Label>
-                <Input value={link.label} onChange={(e) => updateFooterLink("Shop", i, "label", e.target.value)} placeholder="e.g. All Products" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Path</Label>
-                <Select value={link.href} onValueChange={(v) => v && updateFooterLink("Shop", i, "href", v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VALID_INTERNAL_PATHS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="button" size="icon" variant="ghost" onClick={() => removeFooterLink("Shop", i)} className="shrink-0 mb-1">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => addFooterLink("Shop")} className="mt-2">
-            <Plus className="h-4 w-4 mr-1" /> Add Link
-          </Button>
+      <AdminSectionCard
+        title="Footer Menu"
+        description="Three-column footer navigation. Each column appears as a group on the storefront."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FooterGroupEditor
+            group="Shop"
+            links={footerShopLinks}
+            onAdd={() => addFooterLink("Shop")}
+            onUpdate={(i, f, v) => updateFooterLink("Shop", i, f, v)}
+            onRemove={(i) => removeFooterLink("Shop", i)}
+          />
+          <FooterGroupEditor
+            group="Help"
+            links={footerHelpLinks}
+            onAdd={() => addFooterLink("Help")}
+            onUpdate={(i, f, v) => updateFooterLink("Help", i, f, v)}
+            onRemove={(i) => removeFooterLink("Help", i)}
+          />
+          <FooterGroupEditor
+            group="Policy"
+            links={footerPolicyLinks}
+            onAdd={() => addFooterLink("Policy")}
+            onUpdate={(i, f, v) => updateFooterLink("Policy", i, f, v)}
+            onRemove={(i) => removeFooterLink("Policy", i)}
+          />
         </div>
       </AdminSectionCard>
 
-      <AdminSectionCard title="Footer Menu — Help" description="Links shown under the Help column in the footer.">
-        <div className="space-y-2">
-          {footerHelpLinks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No custom links. Default help links will be shown.</p>
-          )}
-          {footerHelpLinks.map((link, i) => (
-            <div key={i} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Label</Label>
-                <Input value={link.label} onChange={(e) => updateFooterLink("Help", i, "label", e.target.value)} placeholder="e.g. FAQ" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Path</Label>
-                <Select value={link.href} onValueChange={(v) => v && updateFooterLink("Help", i, "href", v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VALID_INTERNAL_PATHS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="button" size="icon" variant="ghost" onClick={() => removeFooterLink("Help", i)} className="shrink-0 mb-1">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => addFooterLink("Help")} className="mt-2">
-            <Plus className="h-4 w-4 mr-1" /> Add Link
-          </Button>
-        </div>
-      </AdminSectionCard>
-
-      <AdminSectionCard title="Footer Menu — Policy" description="Links shown under the Policy column in the footer.">
-        <div className="space-y-2">
-          {footerPolicyLinks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No custom links. Default policy links will be shown.</p>
-          )}
-          {footerPolicyLinks.map((link, i) => (
-            <div key={i} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Label</Label>
-                <Input value={link.label} onChange={(e) => updateFooterLink("Policy", i, "label", e.target.value)} placeholder="e.g. Privacy Policy" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Path</Label>
-                <Select value={link.href} onValueChange={(v) => v && updateFooterLink("Policy", i, "href", v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VALID_INTERNAL_PATHS.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="button" size="icon" variant="ghost" onClick={() => removeFooterLink("Policy", i)} className="shrink-0 mb-1">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => addFooterLink("Policy")} className="mt-2">
-            <Plus className="h-4 w-4 mr-1" /> Add Link
-          </Button>
-        </div>
-      </AdminSectionCard>
-
-      <div className="flex gap-3 pt-2">
-        <Button onClick={handleSave} disabled={saving} className="h-11 rounded-full px-8">
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving} className="h-9 rounded-lg px-6 text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white">
           {saving ? "Saving..." : "Save Menu Links"}
         </Button>
       </div>

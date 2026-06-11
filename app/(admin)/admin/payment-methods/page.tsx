@@ -8,22 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import {
-  ChevronDown,
-  ChevronUp,
-  Save,
-  Wallet,
-  CreditCard,
-  Building2,
-  Smartphone,
-  Landmark,
-  Banknote,
-  Truck,
-  ArrowLeft,
-} from "lucide-react"
-import { AdminPageHeader, AdminSectionCard, AdminStatusBadge } from "@/components/admin/admin-ui"
+import { ChevronDown, ChevronUp, Save } from "lucide-react"
+import { AdminPageHeader, AdminStatusBadge } from "@/components/admin/admin-ui"
 
 type PaymentMethod = {
   id: string
@@ -38,24 +25,9 @@ type PaymentMethod = {
   credentials: Record<string, string>
 }
 
-const PROVIDER_ICONS: Record<string, React.ReactNode> = {
-  BKASH: <Smartphone className="size-5" />,
-  NAGAD: <Smartphone className="size-5" />,
-  ROCKET: <Smartphone className="size-5" />,
-  UPAY: <Smartphone className="size-5" />,
-  SSLCOMMERZ: <Building2 className="size-5" />,
-  AAMARPAY: <CreditCard className="size-5" />,
-  COD: <Truck className="size-5" />,
-}
-
 const PROVIDER_LABELS: Record<string, string> = {
-  BKASH: "bKash",
-  NAGAD: "Nagad",
-  ROCKET: "Rocket",
-  UPAY: "Upay",
-  SSLCOMMERZ: "SSLCommerz",
-  AAMARPAY: "aamarPay",
-  COD: "Cash on Delivery",
+  BKASH: "bKash", NAGAD: "Nagad", ROCKET: "Rocket", UPAY: "Upay",
+  SSLCOMMERZ: "SSLCommerz", AAMARPAY: "aamarPay", COD: "Cash on Delivery",
 }
 
 const PROVIDER_CREDENTIAL_FIELDS: Record<string, { key: string; label: string; type?: string }[]> = {
@@ -121,8 +93,7 @@ export default function AdminPaymentMethodsPage() {
 
   function getDefaultMethod(provider: string): PaymentMethod {
     return {
-      id: "",
-      provider,
+      id: "", provider,
       displayName: PROVIDER_LABELS[provider] || provider,
       enabled: provider === "COD",
       mode: "SANDBOX",
@@ -156,44 +127,28 @@ export default function AdminPaymentMethodsPage() {
     }
   }
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
   function updateMethod(provider: string, field: string, value: unknown) {
-    setMethods((prev) =>
-      prev.map((m) => (m.provider === provider ? { ...m, [field]: value } : m))
-    )
+    setMethods((prev) => prev.map((m) => (m.provider === provider ? { ...m, [field]: value } : m)))
   }
 
   function updateCredential(provider: string, key: string, value: string) {
-    setMethods((prev) =>
-      prev.map((m) =>
-        m.provider === provider
-          ? { ...m, credentials: { ...m.credentials, [key]: value } }
-          : m
-      )
-    )
+    setMethods((prev) => prev.map((m) => m.provider === provider ? { ...m, credentials: { ...m.credentials, [key]: value } } : m))
   }
 
   async function handleSave(provider: string) {
     const method = methods.find((m) => m.provider === provider)
     if (!method) return
-
     setSaving(provider)
     try {
       const res = await fetch("/api/admin/payment-methods", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: method.provider,
-          displayName: method.displayName,
-          enabled: method.enabled,
-          mode: method.mode,
-          supportsFullPayment: method.supportsFullPayment,
-          supportsPartialPayment: method.supportsPartialPayment,
-          supportsCodDeliveryCharge: method.supportsCodDeliveryCharge,
-          instructions: method.instructions,
+          provider: method.provider, displayName: method.displayName, enabled: method.enabled, mode: method.mode,
+          supportsFullPayment: method.supportsFullPayment, supportsPartialPayment: method.supportsPartialPayment,
+          supportsCodDeliveryCharge: method.supportsCodDeliveryCharge, instructions: method.instructions,
           credentials: method.credentials,
         }),
       })
@@ -211,46 +166,31 @@ export default function AdminPaymentMethodsPage() {
     }
   }
 
-  function toggleExpanded(provider: string) {
-    setExpanded((prev) => (prev === provider ? null : provider))
-  }
-
   if (loading) {
     return (
-      <div className="space-y-6">
-        <AdminPageHeader eyebrow="Operations" title="Payment Methods" description="Loading setup-ready payment providers..." />
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="space-y-5">
+        <AdminPageHeader eyebrow="Operations" title="Payment Methods" description="Configure payment gateways. Credentials are encrypted." />
+        <p className="text-sm text-slate-400 py-8">Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <AdminPageHeader eyebrow="Operations" title="Payment Methods" description="Configure setup-ready payment gateways. Credentials are encrypted. Existing values appear masked for security." />
+    <div className="space-y-5">
+      <AdminPageHeader eyebrow="Operations" title="Payment Methods" description="Configure payment gateways. Credentials are encrypted." backHref="/admin/operations" />
 
-      <Link href="/admin/operations" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-        Back to Operations Hub
-      </Link>
-
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {methods.map((method) => {
           const isExpanded = expanded === method.provider
           const fields = PROVIDER_CREDENTIAL_FIELDS[method.provider] || []
 
           return (
-            <Card key={method.provider} className="overflow-hidden rounded-[1.5rem] border-black/5 bg-white shadow-sm">
-              <CardHeader
-                className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
-                onClick={() => toggleExpanded(method.provider)}
-              >
+            <Card key={method.provider} className="overflow-hidden rounded-xl border-slate-200/60 bg-white shadow-sm">
+              <CardHeader className="cursor-pointer select-none hover:bg-slate-50/80 transition-colors py-3 px-4" onClick={() => setExpanded(isExpanded ? null : method.provider)}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary">
-                      {PROVIDER_ICONS[method.provider]}
-                    </div>
                     <div>
-                      <CardTitle className="text-base flex items-center gap-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
                         {method.displayName}
                         <AdminStatusBadge status={method.enabled ? "Active" : "Disabled"} />
                         <AdminStatusBadge status={method.mode} />
@@ -258,136 +198,80 @@ export default function AdminPaymentMethodsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={method.enabled}
-                      onCheckedChange={(checked) => {
-                        updateMethod(method.provider, "enabled", checked)
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    {isExpanded ? (
-                      <ChevronUp className="size-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="size-4 text-muted-foreground" />
-                    )}
+                    <Switch checked={method.enabled} onCheckedChange={(checked) => { updateMethod(method.provider, "enabled", checked) }} onClick={(e) => e.stopPropagation()} />
+                    {isExpanded ? <ChevronUp className="size-4 text-slate-400" /> : <ChevronDown className="size-4 text-slate-400" />}
                   </div>
                 </div>
               </CardHeader>
 
               {isExpanded && (
-                <CardContent className="border-t pt-6 space-y-6">
+                <CardContent className="border-t border-slate-100 pt-5 space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Display Name</Label>
-                      <Input
-                        value={method.displayName}
-                        onChange={(e) => updateMethod(method.provider, "displayName", e.target.value)}
-                      />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Display Name</Label>
+                      <Input value={method.displayName} onChange={(e) => updateMethod(method.provider, "displayName", e.target.value)} className="text-xs h-9" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Mode</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Mode</Label>
                       <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant={method.mode === "SANDBOX" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateMethod(method.provider, "mode", "SANDBOX")}
-                          className="flex-1"
-                        >
-                          Sandbox
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={method.mode === "LIVE" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateMethod(method.provider, "mode", "LIVE")}
-                          className="flex-1"
-                        >
-                          Live
-                        </Button>
+                        <Button type="button" variant={method.mode === "SANDBOX" ? "default" : "outline"} size="sm" onClick={() => updateMethod(method.provider, "mode", "SANDBOX")} className="flex-1 h-9 rounded-lg text-xs font-semibold">Sandbox</Button>
+                        <Button type="button" variant={method.mode === "LIVE" ? "default" : "outline"} size="sm" onClick={() => updateMethod(method.provider, "mode", "LIVE")} className="flex-1 h-9 rounded-lg text-xs font-semibold">Live</Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Supported Flows</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <Label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer has-checked:border-primary has-checked:bg-primary/5">
-                        <Switch
-                          checked={method.supportsFullPayment}
-                          onCheckedChange={(checked) =>
-                            updateMethod(method.provider, "supportsFullPayment", checked)
-                          }
-                        />
-                        <div className="text-sm">
-                          <span className="font-medium">Full Payment</span>
-                          <p className="text-xs text-muted-foreground">Pay 100% online</p>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-slate-600">Supported Flows</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-2.5 cursor-pointer has-checked:border-indigo-300 has-checked:bg-indigo-50/50">
+                        <Switch checked={method.supportsFullPayment} onCheckedChange={(checked) => updateMethod(method.provider, "supportsFullPayment", checked)} />
+                        <div className="text-xs">
+                          <span className="font-medium text-slate-700">Full Payment</span>
+                          <p className="text-[10px] text-slate-400">Pay 100% online</p>
                         </div>
-                      </Label>
-                      <Label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer has-checked:border-primary has-checked:bg-primary/5">
-                        <Switch
-                          checked={method.supportsPartialPayment}
-                          onCheckedChange={(checked) =>
-                            updateMethod(method.provider, "supportsPartialPayment", checked)
-                          }
-                        />
-                        <div className="text-sm">
-                          <span className="font-medium">Partial Payment</span>
-                          <p className="text-xs text-muted-foreground">Pay deposit online</p>
+                      </label>
+                      <label className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-2.5 cursor-pointer has-checked:border-indigo-300 has-checked:bg-indigo-50/50">
+                        <Switch checked={method.supportsPartialPayment} onCheckedChange={(checked) => updateMethod(method.provider, "supportsPartialPayment", checked)} />
+                        <div className="text-xs">
+                          <span className="font-medium text-slate-700">Partial Payment</span>
+                          <p className="text-[10px] text-slate-400">Pay deposit online</p>
                         </div>
-                      </Label>
-                      <Label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer has-checked:border-primary has-checked:bg-primary/5">
-                        <Switch
-                          checked={method.supportsCodDeliveryCharge}
-                          onCheckedChange={(checked) =>
-                            updateMethod(method.provider, "supportsCodDeliveryCharge", checked)
-                          }
-                        />
-                        <div className="text-sm">
-                          <span className="font-medium">COD Delivery Charge</span>
-                          <p className="text-xs text-muted-foreground">Prepay delivery fee</p>
+                      </label>
+                      <label className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-2.5 cursor-pointer has-checked:border-indigo-300 has-checked:bg-indigo-50/50">
+                        <Switch checked={method.supportsCodDeliveryCharge} onCheckedChange={(checked) => updateMethod(method.provider, "supportsCodDeliveryCharge", checked)} />
+                        <div className="text-xs">
+                          <span className="font-medium text-slate-700">COD Delivery Charge</span>
+                          <p className="text-[10px] text-slate-400">Prepay delivery fee</p>
                         </div>
-                      </Label>
+                      </label>
                     </div>
                   </div>
 
                   {fields.length > 0 && (
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium">Credentials</Label>
-                      <p className="text-xs text-muted-foreground">Credentials are encrypted at rest. Saved values appear masked — enter new text to replace them.</p>
+                      <div>
+                        <Label className="text-xs font-semibold text-slate-600">Credentials</Label>
+                        <p className="text-[10px] text-slate-400">Credentials are encrypted. Enter new text to replace saved values.</p>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {fields.map((field) => (
-                          <div key={field.key} className="space-y-1.5">
-                            <Label className="text-xs">{field.label}</Label>
-                            <Input
-                              type={field.type || "text"}
-                              value={method.credentials[field.key] || ""}
-                              onChange={(e) =>
-                                updateCredential(method.provider, field.key, e.target.value)
-                              }
-                              placeholder={field.type === "password" ? "Enter new value to replace saved credential" : ""}
-                            />
+                          <div key={field.key} className="space-y-1">
+                            <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{field.label}</Label>
+                            <Input type={field.type || "text"} value={method.credentials[field.key] || ""} onChange={(e) => updateCredential(method.provider, field.key, e.target.value)} placeholder={field.type === "password" ? "Enter new value to replace" : ""} className="text-xs h-9" />
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label>Instructions (shown to customers)</Label>
-                    <Textarea
-                      value={method.instructions}
-                      onChange={(e) => updateMethod(method.provider, "instructions", e.target.value)}
-                      rows={3}
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-slate-600">Instructions (shown to customers)</Label>
+                    <Textarea value={method.instructions} onChange={(e) => updateMethod(method.provider, "instructions", e.target.value)} rows={2} className="text-xs" />
                   </div>
 
                   <div className="flex justify-end">
-                    <Button
-                      onClick={() => handleSave(method.provider)}
-                      disabled={saving === method.provider}
-                    >
-                      <Save className="size-4 mr-1.5" />
+                    <Button onClick={() => handleSave(method.provider)} disabled={saving === method.provider} className="h-9 rounded-lg text-xs font-semibold">
+                      <Save className="size-3.5 mr-1.5" />
                       {saving === method.provider ? "Saving..." : `Save ${PROVIDER_LABELS[method.provider]}`}
                     </Button>
                   </div>

@@ -5,19 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { X } from "lucide-react"
+import { X, ImageIcon } from "lucide-react"
 import { AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui"
 import { ImageUploader } from "@/components/admin/image-uploader"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 export default function AdminHomepagePage() {
   const [heroTitle, setHeroTitle] = useState("")
   const [heroSubtitle, setHeroSubtitle] = useState("")
   const [heroImage, setHeroImage] = useState("")
   const [featuredIds, setFeaturedIds] = useState<string[]>([])
-  const [products, setProducts] = useState<{ id: string; name: string; price: number }[]>([])
+  const [products, setProducts] = useState<{ id: string; name: string; price: number; images?: string[]; imageUrl?: string }[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -78,87 +79,196 @@ export default function AdminHomepagePage() {
     setLoading(false)
   }
 
+  const getProductImage = (product: typeof products[0] | undefined): string | null => {
+    if (!product) return null
+    if (Array.isArray(product.images) && product.images.length > 0 && typeof product.images[0] === "string") {
+      return product.images[0]
+    }
+    if (typeof product.imageUrl === "string" && product.imageUrl) return product.imageUrl
+    return null
+  }
+
   return (
-    <div className="max-w-4xl space-y-6">
-      <AdminPageHeader eyebrow="CMS" title="Homepage Settings" description="Control the storefront hero banner and curated featured product selection." backHref="/admin/cms" />
+    <div className="space-y-5">
+      <AdminPageHeader
+        eyebrow="CMS"
+        title="Homepage Settings"
+        description="Control the storefront hero banner and featured product selection."
+        backHref="/admin/cms"
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <AdminSectionCard title="Hero Banner" description="Set the campaign copy and background image that greet customers on the homepage.">
-            <div className="space-y-2">
-              <Label htmlFor="heroTitle">Hero title</Label>
-              <Input
-                id="heroTitle"
-                value={heroTitle}
-                onChange={(e) => setHeroTitle(e.target.value)}
-                placeholder="Summer Collection 2024"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="heroSubtitle">Hero subtitle</Label>
-              <Textarea
-                id="heroSubtitle"
-                value={heroSubtitle}
-                onChange={(e) => setHeroSubtitle(e.target.value)}
-                rows={2}
-                placeholder="Premium quality at the best price"
-              />
-            </div>
-            <div className="space-y-2">
-              <ImageUploader
-                images={heroImage ? [heroImage] : []}
-                onChange={(imgs) => setHeroImage(imgs[0] || "")}
-                single
-                label="Homepage hero image"
-                helperText="Upload the hero banner image for the homepage."
-                folder="homepage"
-              />
-            </div>
-        </AdminSectionCard>
-
-        <AdminSectionCard title="Featured Products" description="Curate the products shown in Doshok Picks and featured homepage sections.">
-            <div className="flex items-end gap-2">
-              <div className="space-y-1 flex-1">
-                <Label htmlFor="featuredProduct">Add product</Label>
-                <Select value={selectedProductId} onValueChange={(v) => v && setSelectedProductId(v)}>
-                  <SelectTrigger id="featuredProduct">
-                    <SelectValue placeholder="Choose a featured product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name} — ৳{p.price.toLocaleString()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      <form onSubmit={handleSubmit}>
+        <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+          <div className="space-y-5">
+            <AdminSectionCard
+              title="Hero Banner"
+              description="Controls the large banner at the top of your homepage. Title and subtitle appear as text overlay."
+            >
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="heroTitle" className="text-xs font-medium text-slate-600">Hero Title</Label>
+                    <Input id="heroTitle" value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="Summer Collection 2024" className="text-xs h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="heroSubtitle" className="text-xs font-medium text-slate-600">Hero Subtitle</Label>
+                    <Input id="heroSubtitle" value={heroSubtitle} onChange={(e) => setHeroSubtitle(e.target.value)} placeholder="Premium quality at the best price" className="text-xs h-9" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-medium text-slate-600">Hero Background Image</Label>
+                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Renders on storefront</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">Shown as the background of the hero section. Recommended: 1600×800px or larger.</p>
+                  <ImageUploader
+                    images={heroImage ? [heroImage] : []}
+                    onChange={(imgs) => setHeroImage(imgs[0] || "")}
+                    single
+                    label=""
+                    helperText=""
+                    folder="homepage"
+                  />
+                </div>
               </div>
-              <Button type="button" variant="outline" onClick={addFeatured} disabled={!selectedProductId}>
-                Add
-              </Button>
-            </div>
-            {featuredIds.length > 0 && (
-              <div className="space-y-2">
-                {featuredIds.map((id) => {
-                  const product = products.find((p) => p.id === id)
-                  return (
-                    <div key={id} className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm ${!product ? 'border-red-200 bg-red-50' : ''}`}>
-                      <span className={!product ? 'text-muted-foreground italic' : ''}>
-                        {product ? `${product.name} — ৳${product.price.toLocaleString()}` : 'Product not found (may have been deleted)'}
-                      </span>
-                      <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => removeFeatured(id)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-        </AdminSectionCard>
+            </AdminSectionCard>
 
-        <div className="flex gap-3 pt-2">
-          <Button type="submit" disabled={loading} className="h-11 rounded-full px-8">
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
+            <AdminSectionCard
+              title="Featured Products"
+              description="Products shown in the featured section below the hero. Select up to 8 products."
+            >
+              <div className="space-y-4">
+                <div className="flex items-end gap-2">
+                  <div className="space-y-1 flex-1">
+                    <Label htmlFor="featuredProduct" className="text-xs font-medium text-slate-600">Add a product</Label>
+                    <Select value={selectedProductId} onValueChange={(v) => v && setSelectedProductId(v)}>
+                      <SelectTrigger id="featuredProduct" className="text-xs h-9">
+                        <SelectValue placeholder="Choose a product to feature" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((p) => (
+                          <SelectItem key={p.id} value={p.id} className="text-xs">
+                            {p.name} — ৳{(typeof p.price === "number" ? p.price : 0).toLocaleString()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addFeatured}
+                    disabled={!selectedProductId || featuredIds.includes(selectedProductId)}
+                    className="h-9 rounded-lg text-xs font-semibold shrink-0"
+                  >
+                    Add
+                  </Button>
+                </div>
+
+                {featuredIds.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/40 p-5 text-center">
+                    <p className="text-xs text-slate-500">No featured products yet. Add products above to feature them on the homepage.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-400 font-medium">{featuredIds.length} of 8 products selected</p>
+                    {featuredIds.map((id) => {
+                      const product = products.find((p) => p.id === id)
+                      return (
+                        <div
+                          key={id}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-xs",
+                            !product
+                              ? "border-red-200 bg-red-50"
+                              : "border-slate-200 bg-white"
+                          )}
+                        >
+                          {(() => {
+                              const img = getProductImage(product)
+                              return img ? (
+                                <img src={img} alt="" className="h-8 w-8 rounded-md object-cover shrink-0" />
+                              ) : (
+                                <div className="h-8 w-8 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+                                  <ImageIcon className="h-3.5 w-3.5 text-slate-300" />
+                                </div>
+                              )
+                            })()}
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("font-medium truncate", !product ? "text-slate-400 italic" : "text-slate-700")}>
+                              {product ? product.name : "Product not found (may have been deleted)"}
+                            </p>
+                            {product && (
+                              <p className="text-[11px] text-slate-400">৳{(typeof product.price === "number" ? product.price : 0).toLocaleString()}</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 shrink-0 text-slate-400 hover:text-red-500"
+                            onClick={() => removeFeatured(id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </AdminSectionCard>
+          </div>
+
+          <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Summary</h3>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Hero Title</span>
+                  <span className={cn("font-medium text-right max-w-[140px] truncate", !heroTitle ? "text-slate-300" : "text-slate-700")}>
+                    {heroTitle || "Not set"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Hero Subtitle</span>
+                  <span className={cn("font-medium text-right max-w-[140px] truncate", !heroSubtitle ? "text-slate-300" : "text-slate-700")}>
+                    {heroSubtitle || "Not set"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Hero Image</span>
+                  <span className={cn("font-medium", !heroImage ? "text-slate-300" : "text-emerald-600")}>
+                    {heroImage ? "Set" : "Not set"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Featured</span>
+                  <span className={cn("font-semibold tabular-nums", featuredIds.length > 0 ? "text-slate-800" : "text-slate-400")}>
+                    {featuredIds.length} product{featuredIds.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Storefront Preview</h3>
+              <div className="space-y-2 text-[11px] text-slate-500">
+                <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                  <p className="font-semibold text-slate-700 mb-1">Hero Banner</p>
+                  <p>Top of homepage. Shows title, subtitle, and background image as overlay.</p>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                  <p className="font-semibold text-slate-700 mb-1">Featured Products</p>
+                  <p>Below hero. Shows selected products in a grid or carousel.</p>
+                </div>
+              </div>
+            </div>
+
+            <Button type="submit" disabled={loading} className="w-full h-9 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-600 text-white">
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

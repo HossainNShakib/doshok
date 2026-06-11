@@ -32,11 +32,11 @@ export default async function AdminProductsPage({
   const countMap = Object.fromEntries(STATUS_TABS.map((s, i) => [s, counts[i]]))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader
         eyebrow="Commerce"
         title="Products"
-        description={`${products.length} product${products.length === 1 ? "" : "s"} in the Doshok catalog.`}
+        description={`${products.length} product${products.length === 1 ? "" : "s"} in the catalog.`}
         action={{ label: "Add Product", href: "/admin/products/new" }}
         backHref="/admin/commerce"
       />
@@ -46,17 +46,17 @@ export default async function AdminProductsPage({
           <Link
             key={tab}
             href={tab === "All" ? "/admin/products" : `/admin/products?status=${tab}`}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-xs font-bold tracking-wide transition-all ${
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold transition-all ${
               (tab === "All" && !status) || status === tab
-                ? "bg-neutral-950 text-white shadow-sm"
-                : "bg-white text-neutral-500 hover:bg-neutral-100 border border-black/5"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200/60"
             }`}
           >
             {tab}
-            <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+            <span className={`rounded px-1 py-0.5 text-[10px] tabular-nums ${
               (tab === "All" && !status) || status === tab
                 ? "bg-white/20 text-white"
-                : "bg-neutral-100 text-neutral-500"
+                : "bg-slate-100 text-slate-500"
             }`}>
               {countMap[tab]}
             </span>
@@ -65,21 +65,21 @@ export default async function AdminProductsPage({
       </div>
 
       {products.length === 0 ? (
-        <AdminEmptyState title="No products found" description={status ? `No products with status "${status}". Try a different filter.` : "Create the first product to start building the storefront catalog."} action={{ label: "Add Product", href: "/admin/products/new" }} />
+        <AdminEmptyState title="No products found" description={status ? `No products with status "${status}". Try a different filter.` : "Create the first product to start building the catalog."} action={{ label: "Add Product", href: "/admin/products/new" }} />
       ) : (
       <AdminTableShell>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60px]">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Variants</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="border-slate-100">
+              <TableHead className="w-[48px] text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Img</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Name</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Category</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Price</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Type</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Variants</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Stock</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Status</TableHead>
+              <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -87,25 +87,25 @@ export default async function AdminProductsPage({
               const totalStock = product.variants.reduce((s, v) => s + v.stock, 0)
               const hasLowStock = product.variants.some((v) => v.stock > 0 && v.stock <= 5)
               return (
-                <TableRow key={product.id}>
+                <TableRow key={product.id} className="border-slate-50 hover:bg-slate-50/60">
                   <TableCell>
-                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-muted">
+                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-slate-100">
                       {product.images[0] ? (
                         <img src={product.images[0]} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <ImageIcon className="h-3.5 w-3.5 text-slate-300" />
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium max-w-[200px] truncate">{product.name}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{product.category.name}</TableCell>
-                  <TableCell className="font-medium tabular-nums">৳{product.price.toLocaleString()}</TableCell>
+                  <TableCell className="text-xs font-medium text-slate-800 max-w-[180px] truncate">{product.name}</TableCell>
+                  <TableCell className="text-xs text-slate-500">{product.category.name}</TableCell>
+                  <TableCell className="text-xs font-semibold tabular-nums text-slate-800">৳{product.price.toLocaleString()}</TableCell>
                   <TableCell>
                     <AdminStatusBadge status={product.pageType} />
                   </TableCell>
-                  <TableCell className="tabular-nums">{product.variants.length}</TableCell>
-                  <TableCell>
-                    <span className={`tabular-nums ${hasLowStock ? "text-amber-600 font-semibold" : totalStock === 0 ? "text-muted-foreground" : ""}`}>
+                  <TableCell className="text-center text-xs tabular-nums text-slate-600">{product.variants.length}</TableCell>
+                  <TableCell className="text-center">
+                    <span className={`text-xs tabular-nums font-semibold ${hasLowStock ? "text-amber-500" : totalStock === 0 ? "text-slate-400" : "text-slate-700"}`}>
                       {totalStock}
                     </span>
                   </TableCell>
@@ -116,14 +116,14 @@ export default async function AdminProductsPage({
                     <div className="flex justify-end gap-0.5">
                       <Link
                         href={`/admin/products/${product.id}`}
-                        className="inline-flex items-center justify-center rounded-xl text-sm font-medium h-8 px-3 hover:bg-muted hover:text-foreground transition-colors"
+                        className="inline-flex items-center justify-center rounded-md text-[11px] font-semibold h-7 px-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                       >
                         Edit
                       </Link>
                       <Link
                         href={`/products/${product.slug}?preview=1`}
                         target="_blank"
-                        className="inline-flex items-center justify-center rounded-xl text-sm font-medium h-8 w-8 hover:bg-muted hover:text-foreground transition-colors"
+                        className="inline-flex items-center justify-center rounded-md h-7 w-7 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </Link>

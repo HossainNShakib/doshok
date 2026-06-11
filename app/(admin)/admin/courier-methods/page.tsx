@@ -9,30 +9,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
-import {
-  ChevronDown,
-  ChevronUp,
-  Save,
-  Package,
-  ArrowLeft,
-} from "lucide-react"
+import { ChevronDown, ChevronUp, Save } from "lucide-react"
 import { AdminPageHeader, AdminStatusBadge } from "@/components/admin/admin-ui"
-import { ALLOWED_COURIERS, COURIER_LABELS, COURIER_CREDENTIAL_FIELDS, type CourierProvider } from "@/types"
+import { COURIER_LABELS, COURIER_CREDENTIAL_FIELDS, type CourierProvider } from "@/types"
 
 type CourierMethod = {
-  id: string
-  provider: string
-  displayName: string
-  enabled: boolean
-  mode: string
-  isDefault: boolean
-  instructions: string
-  pickupName: string
-  pickupPhone: string
-  pickupAddress: string
-  pickupCity: string
-  pickupZone: string
-  credentials: Record<string, string>
+  id: string; provider: string; displayName: string; enabled: boolean; mode: string; isDefault: boolean
+  instructions: string; pickupName: string; pickupPhone: string; pickupAddress: string
+  pickupCity: string; pickupZone: string; credentials: Record<string, string>
 }
 
 const COURIER_PROVIDERS: CourierProvider[] = ["PATHAO", "STEADFAST", "REDX"]
@@ -45,26 +29,10 @@ export default function AdminCourierMethodsPage() {
 
   function getDefaultMethod(provider: string): CourierMethod {
     return {
-      id: "",
-      provider,
-      displayName: COURIER_LABELS[provider as CourierProvider] || provider,
-      enabled: false,
-      mode: "SANDBOX",
-      isDefault: provider === "PATHAO",
-      instructions: "",
-      pickupName: "",
-      pickupPhone: "",
-      pickupAddress: "",
-      pickupCity: "",
-      pickupZone: "",
-      credentials: {},
+      id: "", provider, displayName: COURIER_LABELS[provider as CourierProvider] || provider,
+      enabled: false, mode: "SANDBOX", isDefault: provider === "PATHAO", instructions: "",
+      pickupName: "", pickupPhone: "", pickupAddress: "", pickupCity: "", pickupZone: "", credentials: {},
     }
-  }
-
-  const PROVIDER_ICONS: Record<string, React.ReactNode> = {
-    PATHAO: <Package className="size-5" />,
-    STEADFAST: <Package className="size-5" />,
-    REDX: <Package className="size-5" />,
   }
 
   async function load() {
@@ -89,48 +57,29 @@ export default function AdminCourierMethodsPage() {
     }
   }
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
   function updateMethod(provider: string, field: string, value: unknown) {
-    setMethods((prev) =>
-      prev.map((m) => (m.provider === provider ? { ...m, [field]: value } : m))
-    )
+    setMethods((prev) => prev.map((m) => (m.provider === provider ? { ...m, [field]: value } : m)))
   }
 
   function updateCredential(provider: string, key: string, value: string) {
-    setMethods((prev) =>
-      prev.map((m) =>
-        m.provider === provider
-          ? { ...m, credentials: { ...m.credentials, [key]: value } }
-          : m
-      )
-    )
+    setMethods((prev) => prev.map((m) => m.provider === provider ? { ...m, credentials: { ...m.credentials, [key]: value } } : m))
   }
 
   async function handleSave(provider: string) {
     const method = methods.find((m) => m.provider === provider)
     if (!method) return
-
     setSaving(provider)
     try {
       const res = await fetch("/api/admin/courier-methods", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: method.provider,
-          displayName: method.displayName,
-          enabled: method.enabled,
-          mode: method.mode,
-          isDefault: method.isDefault,
-          instructions: method.instructions,
-          pickupName: method.pickupName,
-          pickupPhone: method.pickupPhone,
-          pickupAddress: method.pickupAddress,
-          pickupCity: method.pickupCity,
-          pickupZone: method.pickupZone,
-          credentials: method.credentials,
+          provider: method.provider, displayName: method.displayName, enabled: method.enabled, mode: method.mode,
+          isDefault: method.isDefault, instructions: method.instructions, pickupName: method.pickupName,
+          pickupPhone: method.pickupPhone, pickupAddress: method.pickupAddress, pickupCity: method.pickupCity,
+          pickupZone: method.pickupZone, credentials: method.credentials,
         }),
       })
       const d = await res.json()
@@ -147,202 +96,112 @@ export default function AdminCourierMethodsPage() {
     }
   }
 
-  function toggleExpanded(provider: string) {
-    setExpanded((prev) => (prev === provider ? null : provider))
-  }
-
   if (loading) {
     return (
-      <div className="space-y-6">
-        <AdminPageHeader eyebrow="Operations" title="Courier Methods" description="Loading setup-ready courier providers..." />
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="space-y-5">
+        <AdminPageHeader eyebrow="Operations" title="Courier Methods" description="Configure courier integrations." />
+        <p className="text-sm text-slate-400 py-8">Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <AdminPageHeader eyebrow="Operations" title="Courier Methods" description="Configure Pathao, Steadfast, and RedX. Credentials are encrypted. Live courier API integration is setup-ready." />
+    <div className="space-y-5">
+      <AdminPageHeader eyebrow="Operations" title="Courier Methods" description="Configure Pathao, Steadfast, and RedX. Credentials are encrypted." backHref="/admin/operations" />
 
-      <Link href="/admin/operations" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group">
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-        Back to Operations Hub
-      </Link>
-
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {methods.map((method) => {
           const isExpanded = expanded === method.provider
           const fields = COURIER_CREDENTIAL_FIELDS[method.provider as CourierProvider] || []
 
           return (
-            <Card key={method.provider} className="overflow-hidden rounded-[1.5rem] border-black/5 bg-white shadow-sm">
-              <CardHeader
-                className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
-                onClick={() => toggleExpanded(method.provider)}
-              >
+            <Card key={method.provider} className="overflow-hidden rounded-xl border-slate-200/60 bg-white shadow-sm">
+              <CardHeader className="cursor-pointer select-none hover:bg-slate-50/80 transition-colors py-3 px-4" onClick={() => setExpanded(isExpanded ? null : method.provider)}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary">
-                      {PROVIDER_ICONS[method.provider]}
-                    </div>
                     <div>
-                      <CardTitle className="text-base flex items-center gap-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
                         {method.displayName}
                         <AdminStatusBadge status={method.enabled ? "Active" : "Disabled"} />
                         <AdminStatusBadge status={method.mode} />
-                        {method.isDefault && (
-                          <AdminStatusBadge status="Default" />
-                        )}
+                        {method.isDefault && <AdminStatusBadge status="Default" />}
                       </CardTitle>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={method.enabled}
-                      onCheckedChange={(checked) => {
-                        updateMethod(method.provider, "enabled", checked)
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    {isExpanded ? (
-                      <ChevronUp className="size-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="size-4 text-muted-foreground" />
-                    )}
+                    <Switch checked={method.enabled} onCheckedChange={(checked) => { updateMethod(method.provider, "enabled", checked) }} onClick={(e) => e.stopPropagation()} />
+                    {isExpanded ? <ChevronUp className="size-4 text-slate-400" /> : <ChevronDown className="size-4 text-slate-400" />}
                   </div>
                 </div>
               </CardHeader>
 
               {isExpanded && (
-                <CardContent className="border-t pt-6 space-y-6">
+                <CardContent className="border-t border-slate-100 pt-5 space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Display Name</Label>
-                      <Input
-                        value={method.displayName}
-                        onChange={(e) => updateMethod(method.provider, "displayName", e.target.value)}
-                      />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Display Name</Label>
+                      <Input value={method.displayName} onChange={(e) => updateMethod(method.provider, "displayName", e.target.value)} className="text-xs h-9" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Mode</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Mode</Label>
                       <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant={method.mode === "SANDBOX" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateMethod(method.provider, "mode", "SANDBOX")}
-                          className="flex-1"
-                        >
-                          Sandbox
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={method.mode === "LIVE" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateMethod(method.provider, "mode", "LIVE")}
-                          className="flex-1"
-                        >
-                          Live
-                        </Button>
+                        <Button type="button" variant={method.mode === "SANDBOX" ? "default" : "outline"} size="sm" onClick={() => updateMethod(method.provider, "mode", "SANDBOX")} className="flex-1 h-9 rounded-lg text-xs font-semibold">Sandbox</Button>
+                        <Button type="button" variant={method.mode === "LIVE" ? "default" : "outline"} size="sm" onClick={() => updateMethod(method.provider, "mode", "LIVE")} className="flex-1 h-9 rounded-lg text-xs font-semibold">Live</Button>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <Switch
-                      checked={method.isDefault}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setMethods((prev) =>
-                            prev.map((m) => ({
-                              ...m,
-                              isDefault: m.provider === method.provider,
-                            }))
-                          )
-                        }
-                      }}
-                    />
-                    <Label className="text-sm font-medium cursor-pointer">Set as default courier</Label>
+                    <Switch checked={method.isDefault} onCheckedChange={(checked) => { if (checked) setMethods((prev) => prev.map((m) => ({ ...m, isDefault: m.provider === method.provider }))) }} />
+                    <Label className="text-xs font-medium text-slate-700 cursor-pointer">Set as default courier</Label>
                   </div>
 
                   <div className="space-y-3">
-                    <Label className="text-sm font-medium">Pickup Information</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pickup Name</Label>
-                        <Input
-                          value={method.pickupName}
-                          onChange={(e) => updateMethod(method.provider, "pickupName", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pickup Phone</Label>
-                        <Input
-                          value={method.pickupPhone}
-                          onChange={(e) => updateMethod(method.provider, "pickupPhone", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pickup Address</Label>
-                        <Input
-                          value={method.pickupAddress}
-                          onChange={(e) => updateMethod(method.provider, "pickupAddress", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pickup City</Label>
-                        <Input
-                          value={method.pickupCity}
-                          onChange={(e) => updateMethod(method.provider, "pickupCity", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Pickup Zone</Label>
-                        <Input
-                          value={method.pickupZone}
-                          onChange={(e) => updateMethod(method.provider, "pickupZone", e.target.value)}
-                        />
-                      </div>
+                    <Label className="text-xs font-semibold text-slate-600">Pickup Information</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {[
+                        { field: "pickupName" as const, label: "Pickup Name" },
+                        { field: "pickupPhone" as const, label: "Pickup Phone" },
+                        { field: "pickupAddress" as const, label: "Pickup Address" },
+                        { field: "pickupCity" as const, label: "Pickup City" },
+                        { field: "pickupZone" as const, label: "Pickup Zone" },
+                      ].map(({ field: fieldKey, label }) => {
+                        const val = (method as unknown as Record<string, unknown>)[fieldKey]
+                        return (
+                          <div key={fieldKey} className="space-y-1">
+                            <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{label}</Label>
+                            <Input value={String(val ?? "")} onChange={(e) => updateMethod(method.provider, fieldKey, e.target.value)} className="text-xs h-9" />
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
 
                   {fields.length > 0 && (
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium">API Credentials</Label>
-                      <p className="text-xs text-muted-foreground">Credentials are encrypted at rest. Saved values appear masked — enter new text to replace them.</p>
+                      <div>
+                        <Label className="text-xs font-semibold text-slate-600">API Credentials</Label>
+                        <p className="text-[10px] text-slate-400">Credentials are encrypted. Enter new text to replace saved values.</p>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {fields.map((field) => (
-                          <div key={field.key} className="space-y-1.5">
-                            <Label className="text-xs">{field.label}</Label>
-                            <Input
-                              type={field.type || "text"}
-                              value={method.credentials[field.key] || ""}
-                              onChange={(e) =>
-                                updateCredential(method.provider, field.key, e.target.value)
-                              }
-                              placeholder={field.type === "password" ? "Enter new value to replace saved credential" : ""}
-                            />
+                          <div key={field.key} className="space-y-1">
+                            <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{field.label}</Label>
+                            <Input type={field.type || "text"} value={method.credentials[field.key] || ""} onChange={(e) => updateCredential(method.provider, field.key, e.target.value)} placeholder={field.type === "password" ? "Enter new value to replace" : ""} className="text-xs h-9" />
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label>Instructions (shown to customers)</Label>
-                    <Textarea
-                      value={method.instructions}
-                      onChange={(e) => updateMethod(method.provider, "instructions", e.target.value)}
-                      rows={3}
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-slate-600">Instructions (shown to customers)</Label>
+                    <Textarea value={method.instructions} onChange={(e) => updateMethod(method.provider, "instructions", e.target.value)} rows={2} className="text-xs" />
                   </div>
 
                   <div className="flex justify-end">
-                    <Button
-                      onClick={() => handleSave(method.provider)}
-                      disabled={saving === method.provider}
-                    >
-                      <Save className="size-4 mr-1.5" />
+                    <Button onClick={() => handleSave(method.provider)} disabled={saving === method.provider} className="h-9 rounded-lg text-xs font-semibold">
+                      <Save className="size-3.5 mr-1.5" />
                       {saving === method.provider ? "Saving..." : `Save ${COURIER_LABELS[method.provider as CourierProvider]}`}
                     </Button>
                   </div>

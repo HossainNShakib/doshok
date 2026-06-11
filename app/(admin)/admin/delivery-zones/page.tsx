@@ -10,9 +10,7 @@ import { Plus, Pencil, Trash2, Check, X } from "lucide-react"
 import { AdminBackLink, AdminEmptyState, AdminPageHeader, AdminSectionCard, AdminTableShell } from "@/components/admin/admin-ui"
 
 type DeliveryZone = {
-  id: string
-  name: string
-  fee: number
+  id: string; name: string; fee: number
 }
 
 export default function AdminDeliveryZonesPage() {
@@ -23,7 +21,6 @@ export default function AdminDeliveryZonesPage() {
   const [editName, setEditName] = useState("")
   const [editFee, setEditFee] = useState("")
   const [loading, setLoading] = useState(false)
-
   const [initialLoading, setInitialLoading] = useState(true)
 
   async function load() {
@@ -37,10 +34,10 @@ export default function AdminDeliveryZonesPage() {
 
   if (initialLoading) {
     return (
-      <div className="space-y-6">
-        <AdminPageHeader eyebrow="Operations" title="Delivery Zones" description="Control checkout delivery fees by customer area. Names should be short and recognisable." />
+      <div className="space-y-5">
+        <AdminPageHeader eyebrow="Operations" title="Delivery Zones" description="Control checkout delivery fees by customer area." />
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-muted-foreground">Loading zones...</p>
+          <p className="text-sm text-slate-400">Loading zones...</p>
         </div>
       </div>
     )
@@ -102,37 +99,24 @@ export default function AdminDeliveryZonesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <AdminPageHeader eyebrow="Operations" title="Delivery Zones" description="Control checkout delivery fees by customer area. Names should be short and recognisable." />
+    <div className="space-y-5">
+      <AdminPageHeader eyebrow="Operations" title="Delivery Zones" description="Control checkout delivery fees by customer area." backHref="/admin/operations" />
       <AdminBackLink href="/admin/operations" label="Back to Operations Hub" />
 
       <AdminSectionCard title="Create Delivery Zone" description="Add a new zone with a flat delivery fee charged at checkout.">
-          <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-[1fr_160px_auto] md:items-end">
-            <div className="space-y-1">
-              <Label htmlFor="zoneName">Zone name</Label>
-              <Input
-                id="zoneName"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g. Inside Dhaka"
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="zoneFee">Fee (৳)</Label>
-              <Input
-                id="zoneFee"
-                type="number"
-                value={newFee}
-                onChange={(e) => setNewFee(e.target.value)}
-                placeholder="e.g. 100"
-                required
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="h-10 rounded-full px-5">
-              <Plus className="h-4 w-4 mr-1" /> Add zone
-            </Button>
-          </form>
+        <form onSubmit={handleCreate} className="grid gap-3 md:grid-cols-[1fr_140px_auto] md:items-end">
+          <div className="space-y-1">
+            <Label htmlFor="zoneName" className="text-xs font-medium text-slate-600">Zone name</Label>
+            <Input id="zoneName" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Inside Dhaka" className="h-9 text-xs" required />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="zoneFee" className="text-xs font-medium text-slate-600">Fee (৳)</Label>
+            <Input id="zoneFee" type="number" value={newFee} onChange={(e) => setNewFee(e.target.value)} placeholder="e.g. 100" className="h-9 text-xs" required />
+          </div>
+          <Button type="submit" disabled={loading} className="h-9 rounded-lg px-4 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add zone
+          </Button>
+        </form>
       </AdminSectionCard>
 
       {zones.length === 0 ? (
@@ -141,55 +125,45 @@ export default function AdminDeliveryZonesPage() {
       <AdminTableShell>
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Fee</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+          <TableRow className="border-slate-100">
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Name</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Fee</TableHead>
+            <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {zones.map((zone) => (
-            <TableRow key={zone.id} className={editingId === zone.id ? "bg-neutral-50" : ""}>
+            <TableRow key={zone.id} className={`border-slate-50 hover:bg-slate-50/60 ${editingId === zone.id ? "bg-slate-50/60" : ""}`}>
               {editingId === zone.id ? (
                 <>
                   <TableCell>
-                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8" />
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8 text-xs" />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      value={editFee}
-                      onChange={(e) => setEditFee(e.target.value)}
-                      className="h-8 w-24"
-                    />
+                    <Input type="number" value={editFee} onChange={(e) => setEditFee(e.target.value)} className="h-8 w-24 text-xs" />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => saveEdit(zone.id)}>
-                        <Check className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveEdit(zone.id)}>
+                        <Check className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingId(null)}>
-                        <X className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(null)}>
+                        <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>
                 </>
               ) : (
                 <>
-                  <TableCell className="font-medium">{zone.name}</TableCell>
-                  <TableCell>৳{zone.fee.toLocaleString()}</TableCell>
+                  <TableCell className="text-xs font-semibold text-slate-800">{zone.name}</TableCell>
+                  <TableCell className="text-xs font-semibold tabular-nums text-slate-700">৳{zone.fee.toLocaleString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(zone)}>
-                        <Pencil className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(zone)}>
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(zone.id, zone.name)}
-                      >
-                        <Trash2 className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => handleDelete(zone.id, zone.name)}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </TableCell>

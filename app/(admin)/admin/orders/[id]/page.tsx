@@ -1,13 +1,11 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UpdateOrderStatus } from "@/components/admin/update-order-status"
 import { OrderShipment } from "@/components/admin/order-shipment"
 import { AdminPageHeader, AdminSectionCard, AdminStatusBadge, AdminTableShell } from "@/components/admin/admin-ui"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronDown, ChevronUp, Code } from "lucide-react"
 
 export default async function AdminOrderDetailPage({
   params,
@@ -31,7 +29,7 @@ export default async function AdminOrderDetailPage({
   if (!order) notFound()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader
         eyebrow="Sales"
         title={`Order ${order.orderNumber}`}
@@ -39,85 +37,83 @@ export default async function AdminOrderDetailPage({
         backHref="/admin/orders"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AdminSectionCard title="Customer Information" description="Contact details and delivery address for this order.">
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-1 gap-3">
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Customer Name</p>
-                <p className="mt-1 font-bold">{order.customerName}</p>
-              </div>
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Email</p>
-                <p className="mt-1 font-medium">{order.customerEmail}</p>
-              </div>
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Phone</p>
-                <p className="mt-1 font-mono font-medium">{order.customerPhone}</p>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <AdminSectionCard title="Customer Information" description="Contact details for this order.">
+          <div className="space-y-2 text-xs">
+            <div className="rounded-lg bg-slate-50/60 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Name</p>
+              <p className="font-semibold text-slate-800">{order.customerName}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50/60 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Email</p>
+              <p className="font-medium text-slate-700">{order.customerEmail}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50/60 p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Phone</p>
+              <p className="font-mono font-semibold text-slate-800">{order.customerPhone}</p>
             </div>
           </div>
         </AdminSectionCard>
 
         <AdminSectionCard title="Delivery Address" description="Where the order will be delivered.">
           {order.address ? (
-            <div className="grid grid-cols-1 gap-3 text-sm">
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Division</p>
-                <p className="mt-1 font-medium">{order.address.division}</p>
+            <div className="space-y-2 text-xs">
+              <div className="rounded-lg bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Division</p>
+                <p className="font-semibold text-slate-800">{order.address.division}</p>
               </div>
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">District</p>
-                <p className="mt-1 font-medium">{order.address.district}</p>
+              <div className="rounded-lg bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">District</p>
+                <p className="font-semibold text-slate-800">{order.address.district}</p>
               </div>
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Thana / Area</p>
-                <p className="mt-1 font-medium">{order.address.thana}</p>
+              <div className="rounded-lg bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Thana / Area</p>
+                <p className="font-semibold text-slate-800">{order.address.thana}</p>
               </div>
-              <div className="rounded-xl bg-neutral-50 p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Full Address</p>
-                <p className="mt-1 font-medium">{order.address.fullAddress}</p>
+              <div className="rounded-lg bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Full Address</p>
+                <p className="font-medium text-slate-700">{order.address.fullAddress}</p>
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-neutral-200 p-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400">
               No delivery address recorded
             </div>
           )}
         </AdminSectionCard>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <AdminSectionCard title="Payment & Order Status" description="Current fulfillment and payment status.">
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <AdminStatusBadge status={order.paymentStatus === "paid" ? "Paid" : "Pending"} type="payment" />
               <AdminStatusBadge status={order.orderStatus} type="order" />
               <AdminStatusBadge status={order.paymentMethod.toUpperCase()} type="default" />
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               {order.bkashTrxId && (
-                <div className="rounded-xl bg-neutral-50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">bKash TrxID</p>
-                  <p className="mt-1 font-mono text-xs font-bold">{order.bkashTrxId}</p>
+                <div className="rounded-lg bg-slate-50/60 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">bKash TrxID</p>
+                  <p className="font-mono text-[11px] font-bold text-slate-700">{order.bkashTrxId}</p>
                 </div>
               )}
               {order.paymentVerifiedAt && (
-                <div className="rounded-xl bg-neutral-50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Verified At</p>
-                  <p className="mt-1 text-xs">{order.paymentVerifiedAt.toLocaleString()}</p>
+                <div className="rounded-lg bg-emerald-50/60 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500 mb-1">Verified At</p>
+                  <p className="text-[11px] text-slate-700">{order.paymentVerifiedAt.toLocaleString()}</p>
                 </div>
               )}
               {order.paymentExpiresAt && order.paymentStatus === "pending" && (
-                <div className="rounded-xl bg-amber-50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-600">Payment Expires</p>
-                  <p className="mt-1 text-xs">{order.paymentExpiresAt.toLocaleString()}</p>
+                <div className="rounded-lg bg-amber-50/60 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-500 mb-1">Payment Expires</p>
+                  <p className="text-[11px] text-slate-700">{order.paymentExpiresAt.toLocaleString()}</p>
                 </div>
               )}
               {order.stockRestoredAt && (
-                <div className="rounded-xl bg-emerald-50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-600">Stock Restored</p>
-                  <p className="mt-1 text-xs">{order.stockRestoredAt.toLocaleString()}</p>
+                <div className="rounded-lg bg-slate-50/60 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Stock Restored</p>
+                  <p className="text-[11px] text-slate-700">{order.stockRestoredAt.toLocaleString()}</p>
                 </div>
               )}
             </div>
@@ -126,40 +122,40 @@ export default async function AdminOrderDetailPage({
         </AdminSectionCard>
 
         <AdminSectionCard title="Order Totals" description="Financial breakdown of the order.">
-          <div className="space-y-3 text-sm">
+          <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-neutral-500">Subtotal</span>
-              <span className="font-medium tabular-nums">৳{order.subtotal.toLocaleString()}</span>
+              <span className="text-slate-500">Subtotal</span>
+              <span className="font-medium tabular-nums text-slate-700">৳{order.subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-neutral-500">Delivery Fee</span>
-              <span className="font-medium tabular-nums">৳{order.deliveryFee.toLocaleString()}</span>
+              <span className="text-slate-500">Delivery Fee</span>
+              <span className="font-medium tabular-nums text-slate-700">৳{order.deliveryFee.toLocaleString()}</span>
             </div>
             {order.discount > 0 && (
               <div className="flex justify-between text-emerald-600">
                 <span>Discount</span>
-                <span className="font-medium tabular-nums">-৳{order.discount.toLocaleString()}</span>
+                <span className="font-semibold tabular-nums">-৳{order.discount.toLocaleString()}</span>
               </div>
             )}
             {order.couponCode && (
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Coupon Applied</span>
-                <span className="font-mono font-bold">{order.couponCode}</span>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Coupon Applied</span>
+                <span className="font-mono font-bold text-slate-800">{order.couponCode}</span>
               </div>
             )}
             <Separator />
-            <div className="flex justify-between text-base font-black">
+            <div className="flex justify-between text-sm font-bold">
               <span>Total</span>
-              <span className="tabular-nums">৳{order.total.toLocaleString()}</span>
+              <span className="tabular-nums text-slate-900">৳{order.total.toLocaleString()}</span>
             </div>
             {order.paidAmount > 0 && (
               <div className="flex justify-between">
-                <span className="text-neutral-500">Paid Amount</span>
-                <span className="font-medium tabular-nums">৳{order.paidAmount.toLocaleString()}</span>
+                <span className="text-slate-500">Paid Amount</span>
+                <span className="font-medium tabular-nums text-slate-700">৳{order.paidAmount.toLocaleString()}</span>
               </div>
             )}
             {order.refundedAt && (
-              <div className="flex justify-between text-destructive">
+              <div className="flex justify-between text-red-500">
                 <span>Refunded</span>
                 <span className="font-medium tabular-nums">৳{order.refundAmount.toLocaleString()}</span>
               </div>
@@ -174,24 +170,24 @@ export default async function AdminOrderDetailPage({
         <AdminTableShell>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Variant</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+              <TableRow className="border-slate-100">
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Product</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Variant</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Qty</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Unit Price</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {order.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
+                <TableRow key={item.id} className="border-slate-50 hover:bg-slate-50/60">
+                  <TableCell className="text-xs font-semibold text-slate-800">{item.name}</TableCell>
+                  <TableCell className="text-xs text-slate-500">
                     {[item.size, item.color].filter(Boolean).join(" / ") || "—"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
-                  <TableCell className="text-right tabular-nums">৳{item.price.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">৳{(item.price * item.quantity).toLocaleString()}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums text-slate-600">{item.quantity}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums text-slate-600">৳{item.price.toLocaleString()}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold tabular-nums text-slate-800">৳{(item.price * item.quantity).toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -204,24 +200,24 @@ export default async function AdminOrderDetailPage({
           <AdminTableShell>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Transaction ID</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Verified At</TableHead>
+                <TableRow className="border-slate-100">
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Provider</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Transaction ID</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Amount</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Status</TableHead>
+                  <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Verified At</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {order.transactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="font-mono text-sm">{tx.provider}</TableCell>
-                    <TableCell className="font-mono text-xs">{tx.trxId}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">৳{tx.amount.toLocaleString()}</TableCell>
+                  <TableRow key={tx.id} className="border-slate-50 hover:bg-slate-50/60">
+                    <TableCell className="font-mono text-[11px] font-semibold text-slate-700">{tx.provider}</TableCell>
+                    <TableCell className="font-mono text-[11px] text-slate-500">{tx.trxId}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold tabular-nums text-slate-800">৳{tx.amount.toLocaleString()}</TableCell>
                     <TableCell>
                       <AdminStatusBadge status={tx.status} />
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-xs text-slate-500">
                       {tx.verifiedAt ? tx.verifiedAt.toLocaleString() : "—"}
                     </TableCell>
                   </TableRow>
