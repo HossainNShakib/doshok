@@ -43,7 +43,7 @@ export async function PATCH(
       )
 
       const upsertOps = variants.map(
-        (v: { id?: string; size: string; color: string; colorHex?: string; stock: number; sku?: string }) => {
+        (v: { id?: string; size: string; color: string; colorHex?: string; stock: number; sku?: string; lowStockThreshold?: number }) => {
           const key = `${v.size}::${v.color}`
           const existingId = existingMap.get(key)
           return prisma.productVariant.upsert({
@@ -55,6 +55,7 @@ export async function PATCH(
               colorHex: v.colorHex ?? null,
               stock: v.stock,
               sku: v.sku ?? null,
+              lowStockThreshold: v.lowStockThreshold ?? 5,
             },
             update: {
               size: v.size,
@@ -62,6 +63,7 @@ export async function PATCH(
               colorHex: v.colorHex ?? null,
               stock: v.stock,
               sku: v.sku ?? null,
+              lowStockThreshold: v.lowStockThreshold ?? 5,
             },
           })
         }

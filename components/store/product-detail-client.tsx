@@ -338,6 +338,9 @@ export function ProductDetailClient({
               {isLowStock && selectedVariant && (
                 <p className="mt-2 text-xs font-bold text-amber-600">Only {selectedStock} left for this option.</p>
               )}
+              {selectedSize && selectedColor && !inStock && (
+                <p className="mt-2 text-xs font-bold text-red-500">This combination is out of stock. Please select another size or color.</p>
+              )}
             </div>
           )}
 

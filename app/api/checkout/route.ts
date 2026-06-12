@@ -133,14 +133,15 @@ export async function POST(request: NextRequest) {
         if (item.variantId) {
           const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } })
           if (!variant) throw new Error(`Variant not found: ${item.variantId}`)
-          if (variant.stock < item.quantity) {
+          const availableStock = Math.max(0, variant.stock - variant.reservedStock)
+          if (availableStock < item.quantity) {
             throw new Error(
-              `Insufficient stock for "${productMap.get(item.productId)?.name || "Product"}". Available: ${variant.stock}, requested: ${item.quantity}`
+              `Insufficient stock for "${productMap.get(item.productId)?.name || "Product"}". Available: ${availableStock}, requested: ${item.quantity}`
             )
           }
           await tx.productVariant.update({
             where: { id: item.variantId },
-            data: { stock: { decrement: item.quantity } },
+            data: { reservedStock: { increment: item.quantity } },
           })
         }
       }
@@ -208,21 +209,44 @@ export async function POST(request: NextRequest) {
         include: { items: true, address: true },
       })
 
-      if (couponCode && discount > 0) {
-        const coupon = await tx.coupon.findUnique({ where: { code: couponCode.toUpperCase() } })
-        if (coupon) {
-          await tx.couponUsage.create({
-            data: {
-              couponId: coupon.id,
-              userId,
-              email: customer.email || "",
-              orderId: createdOrder.id,
-            },
-          })
+if (couponCode && discount > 0) {
+          const coupon = await tx.coupon.findUnique({ where: { code: couponCode.toUpperCase() } })
+          if (coupon) {
+            await tx.couponUsage.create({
+              data: {
+                couponId: coupon.id,
+                userId,
+                email: customer.email || "",
+                orderId: createdOrder.id,
+              },
+            })
+          }
         }
-      }
 
-      return createdOrder
+        for (const item of validatedItems) {
+          if (item.variantId) {
+            const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } })
+            if (variant) {
+              await tx.stockMovement.create({
+                data: {
+                  productId: item.productId,
+                  variantId: item.variantId,
+                  orderId: createdOrder.id,
+                  orderItemId: createdOrder.items.find(oi => oi.variantId === item.variantId)?.id,
+                  type: "order_reserved",
+                  quantity: item.quantity,
+                  beforeStock: variant.stock,
+                  afterStock: variant.stock,
+                  beforeReserved: variant.reservedStock - item.quantity,
+                  afterReserved: variant.reservedStock,
+                  reason: "Order created",
+                },
+              })
+            }
+          }
+        }
+
+        return createdOrder
     })
 
     let paymentInitData: { paymentId?: string; paymentUrl?: string } | null = null

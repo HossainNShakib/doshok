@@ -13,6 +13,7 @@ import { DELIVERY_ZONE_NAMES } from "@/types"
 import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus, ChevronLeft, ChevronRight, Smartphone, User, LogIn, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { saveLandingDraft, loadLandingDraft, clearLandingDraft, clearBuyNowContext, clearAllLandingData, saveAbandonedCheckout, getDraftToken, maskEmail, maskPhone, formatRelativeTime } from "@/lib/checkout-draft"
+import { stripCountryCode, toE164 } from "@/lib/utils"
 import { sendPhoneOtp, confirmOtpAndGetIdToken } from "@/lib/firebase-client"
 import type { ConfirmationResult } from "@/lib/firebase-client"
 import { useSession } from "next-auth/react"
@@ -283,8 +284,8 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
         if (!name.trim()) errors.push("Full name is required")
         if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
           errors.push("Valid email is required")
-        if (!phone.trim() || phone.trim().length < 11)
-          errors.push("Valid phone number (11+ digits) is required")
+        if (!phone.trim() || !/^1[3-9]\d{8}$/.test(phone.trim()))
+          errors.push("Enter a valid Bangladesh mobile number (01XXXXXXXXX)")
         break
       case 2:
         if (!districtId) errors.push("Division and district are required")
@@ -373,14 +374,15 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   }
 
   async function handleSendPhoneOtp() {
-    if (!phone || phone.length < 11) {
-      toast.error("Please enter a valid phone number")
+    if (!phone || phone.length !== 10 || !phone.startsWith("1")) {
+      toast.error("Enter a valid 10-digit Bangladesh mobile number (01XXXXXXXXX)")
       return
     }
+    const e164 = toE164(phone)
     setLoading(true)
     setPhoneOtpError("")
     try {
-      const result = await sendPhoneOtp(phone, "landing-recaptcha-container")
+      const result = await sendPhoneOtp(e164, "landing-recaptcha-container")
       if (!result) {
         setPhoneOtpError("Phone verification is not configured. Please contact support.")
         toast.error("Phone verification unavailable")
@@ -420,7 +422,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       const res = await fetch("/api/otp/verify-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebaseIdToken: idTokenResult.idToken, phone }),
+        body: JSON.stringify({ firebaseIdToken: idTokenResult.idToken, phone: toE164(phone) }),
       })
       const d = await res.json()
       if (d.success) {
@@ -861,9 +863,13 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                 <Input
                   id="phone"
                   type="tel"
+                  inputMode="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="01XXXXXXXXX"
+                  onChange={(e) => {
+                    const stripped = stripCountryCode(e.target.value)
+                    setPhone(stripped.replace(/\D/g, ""))
+                  }}
+                  placeholder="1XXXXXXXXX"
                   disabled={phoneOtpVerified}
                   className="h-11 rounded-xl"
                 />

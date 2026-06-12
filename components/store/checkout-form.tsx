@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { type CheckoutDraft, maskEmail, maskPhone, formatRelativeTime, saveAbandonedCheckout } from "@/lib/checkout-draft"
+import { stripCountryCode, toE164 } from "@/lib/utils"
 import { useCheckoutDraft } from "@/hooks/use-checkout-draft"
 import { sendPhoneOtp, confirmOtpAndGetIdToken } from "@/lib/firebase-client"
 import type { ConfirmationResult } from "@/lib/firebase-client"
@@ -337,8 +338,8 @@ export function CheckoutForm() {
         if (!draft.name.trim()) errors.push("Full name is required")
         if (!draft.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email))
           errors.push("Valid email is required")
-        if (!draft.phone.trim() || draft.phone.trim().length < 11)
-          errors.push("Valid phone number (11+ digits) is required")
+        if (!draft.phone.trim() || !/^1[3-9]\d{8}$/.test(draft.phone.trim()))
+          errors.push("Enter a valid Bangladesh mobile number (01XXXXXXXXX)")
         break
       }
       case 1: {
@@ -423,15 +424,16 @@ export function CheckoutForm() {
   }
 
   async function handleSendPhoneOtp() {
-    const phone = draft.phone
-    if (!phone || phone.length < 11) {
-      toast.error("Please enter a valid phone number")
+    const localNumber = draft.phone
+    if (!localNumber || localNumber.length !== 10 || !localNumber.startsWith("1")) {
+      toast.error("Enter a valid 10-digit Bangladesh mobile number (01XXXXXXXXX)")
       return
     }
+    const e164 = toE164(localNumber)
     setPhoneOtpLoading(true)
     setPhoneOtpError("")
     try {
-      const result = await sendPhoneOtp(phone, "recaptcha-container")
+      const result = await sendPhoneOtp(e164, "recaptcha-container")
       if (!result) {
         setPhoneOtpError("Phone verification is not configured. Please contact support.")
         toast.error("Phone verification unavailable")
@@ -471,7 +473,7 @@ export function CheckoutForm() {
       const res = await fetch("/api/otp/verify-phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firebaseIdToken: idTokenResult.idToken, phone: draft.phone }),
+        body: JSON.stringify({ firebaseIdToken: idTokenResult.idToken, phone: toE164(draft.phone) }),
       })
       const d = await res.json()
       if (d.success) {
@@ -789,15 +791,24 @@ export function CheckoutForm() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={draft.phone}
-                      onChange={(e) => updateField("phone", e.target.value)}
-                      placeholder="01XXXXXXXXX"
-                      disabled={phoneOtpVerified}
-                      className="h-11 rounded-xl"
-                    />
+                    <div className="flex items-center gap-0 rounded-xl border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 has-[:focus]:ring-primary">
+                      <span className="px-4 py-2.5 text-sm font-medium bg-muted/50 border-r border-border text-muted-foreground select-none shrink-0">
+                        +880
+                      </span>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        inputMode="tel"
+                        value={draft.phone}
+                        onChange={(e) => {
+                          const stripped = stripCountryCode(e.target.value)
+                          updateField("phone", stripped.replace(/\D/g, ""))
+                        }}
+                        placeholder="1XXXXXXXXX"
+                        disabled={phoneOtpVerified}
+                        className="h-11 rounded-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>

@@ -179,7 +179,7 @@ export const otpSchema = z.object({
 
 export const phoneVerifySchema = z.object({
   firebaseIdToken: z.string().min(1, "Firebase ID token is required"),
-  phone: z.string().min(11, "Valid phone number is required"),
+  phone: z.string().regex(/^\+8801[3-9]\d{8}$/, "Phone must be in E.164 format (+8801XXXXXXXXX)"),
 })
 
 export const abandonedPublicUpdateSchema = z.object({

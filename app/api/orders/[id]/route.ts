@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { success, error } from "@/lib/api-response"
 import { sendOrderStatusEmail } from "@/lib/mailer"
 import { ORDER_STATUSES } from "@/types"
+import { releaseStockForOrder, finalizeStockDeductionForDeliveredOrder } from "@/lib/services/inventory.service"
 
 export async function GET(
   request: NextRequest,
@@ -98,6 +99,18 @@ export async function PATCH(
         })),
       }
       sendOrderStatusEmail(emailData, filtered.orderStatus as string).catch(() => {})
+
+      if (filtered.orderStatus === "cancelled") {
+        releaseStockForOrder(id, "Order cancelled by admin").catch((err) => {
+          console.error("Failed to release stock on cancellation:", err)
+        })
+      }
+
+      if (filtered.orderStatus === "delivered") {
+        finalizeStockDeductionForDeliveredOrder(id).catch((err) => {
+          console.error("Failed to finalize stock on delivery:", err)
+        })
+      }
     }
 
     return success(order)

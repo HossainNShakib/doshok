@@ -20,6 +20,7 @@ type VariantInput = {
   colorHex: string
   stock: number
   sku: string
+  lowStockThreshold: number
 }
 
 export default function NewProductPage() {
@@ -59,7 +60,7 @@ export default function NewProductPage() {
   const noVariants = totalVariants === 0
 
   function addVariant() {
-    setVariants([...variants, { size: "", color: "", colorHex: "", stock: 0, sku: "" }])
+    setVariants([...variants, { size: "", color: "", colorHex: "", stock: 0, sku: "", lowStockThreshold: 5 }])
   }
 
   function handleNameChange(value: string) {
@@ -155,7 +156,9 @@ export default function NewProductPage() {
                   <Label htmlFor="categoryId">Category <span className="text-red-500">*</span></Label>
                   <Select value={categoryId} onValueChange={(v) => v && setCategoryId(v)}>
                     <SelectTrigger className={noCategory ? "border-amber-300" : ""}>
-                      <SelectValue placeholder="Choose a category" />
+                      <SelectValue placeholder="Choose a category">
+                        {categories.find((c) => c.id === categoryId)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((c) => (
@@ -229,7 +232,7 @@ export default function NewProductPage() {
                 </div>
               )}
               {variants.map((v, i) => (
-                <div key={i} className="grid gap-2 rounded-lg border border-slate-200/60 p-3 md:grid-cols-[1fr_1fr_90px_70px_1fr_auto] md:items-center">
+                <div key={i} className="grid gap-2 rounded-lg border border-slate-200/60 p-3 md:grid-cols-[1fr_1fr_90px_70px_60px_1fr_auto] md:items-center">
                   <div className="space-y-1">
                     <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Size</Label>
                     <Select value={v.size} onValueChange={(val) => val && updateVariant(i, "size", val)}>
@@ -264,6 +267,10 @@ export default function NewProductPage() {
                   <div className="space-y-1">
                     <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Stock</Label>
                     <Input type="number" value={v.stock} onChange={(e) => updateVariant(i, "stock", parseInt(e.target.value) || 0)} className={`h-8 text-xs ${v.stock === 0 ? "text-slate-400" : ""}`} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Alert</Label>
+                    <Input type="number" value={v.lowStockThreshold} onChange={(e) => updateVariant(i, "lowStockThreshold", parseInt(e.target.value) || 5)} className="h-8 text-xs" placeholder="5" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">SKU <span className="text-slate-300">(opt.)</span></Label>

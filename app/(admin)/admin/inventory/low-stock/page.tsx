@@ -1,6 +1,12 @@
-import { AdminPageHeader } from "@/components/admin/admin-ui"
+import Link from "next/link"
+import { getLowStockItems } from "@/lib/services/inventory.service"
+import { AdminPageHeader, AdminTableShell } from "@/components/admin/admin-ui"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { AlertTriangle, ImageIcon, Pencil } from "lucide-react"
 
-export default function InventoryLowStockPage() {
+export default async function InventoryLowStockPage() {
+  const lowStockItems = await getLowStockItems(50)
+
   return (
     <div className="space-y-5">
       <AdminPageHeader
@@ -8,17 +14,99 @@ export default function InventoryLowStockPage() {
         title="Low Stock Alerts"
         description="Products and variants that are running low on stock and need restocking attention."
       />
-      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-12 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-          <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
+
+      {lowStockItems.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/30 p-12 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+            <svg className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-emerald-800">All stock levels look good</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-emerald-600">
+            No products are currently below their low stock threshold.
+          </p>
         </div>
-        <h2 className="text-lg font-bold text-slate-800">Low stock alerts module coming soon</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-          Products below the stock threshold will be flagged here for restocking.
-        </p>
-      </div>
+      ) : (
+        <AdminTableShell>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-100">
+                <TableHead className="w-[48px] text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Img</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Product</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Variant</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Available</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Threshold</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Current</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-center">Reserved</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Status</TableHead>
+                <TableHead className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lowStockItems.map((item) => (
+                <TableRow key={item.variantId} className="border-slate-50 hover:bg-slate-50/60">
+                  <TableCell>
+                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-slate-100">
+                      {item.productImage ? (
+                        <img src={item.productImage} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-3.5 w-3.5 text-slate-300" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-[180px]">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{item.productName}</p>
+                      <p className="text-[10px] text-slate-400">{item.categoryName}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-600">
+                    <span className="font-medium">{item.size}</span>
+                    <span className="text-slate-300 mx-1">/</span>
+                    <span className="font-medium">{item.color}</span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className={`text-xs font-bold tabular-nums ${
+                      item.availableStock === 0 ? "text-red-500" : "text-amber-500"
+                    }`}>
+                      {item.availableStock}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center text-xs tabular-nums text-slate-500">
+                    {item.lowStockThreshold}
+                  </TableCell>
+                  <TableCell className="text-center text-xs tabular-nums text-slate-600">
+                    {item.currentStock}
+                  </TableCell>
+                  <TableCell className="text-center text-xs tabular-nums text-slate-400">
+                    {item.reservedStock}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      <span className={`text-[11px] font-bold ${
+                        item.availableStock === 0 ? "text-red-500" : "text-amber-500"
+                      }`}>
+                        {item.availableStock === 0 ? "Out of Stock" : "Low Stock"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/admin/products/${item.productId}`}
+                      className="inline-flex items-center justify-center rounded-md text-[11px] font-semibold h-7 px-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </AdminTableShell>
+      )}
     </div>
   )
 }

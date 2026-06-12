@@ -4,6 +4,7 @@ import { AdminPageHeader, AdminSectionCard, AdminStatCard, AdminTableShell, Admi
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertTriangle, DollarSign, Package, ShoppingBag, ShoppingCart, Timer, Users, ArrowRight, Plus, ClipboardList } from "lucide-react"
 import { LOW_STOCK_THRESHOLD } from "@/types"
+import { getInventoryStats, getLowStockItems } from "@/lib/services/inventory.service"
 
 export default async function AdminDashboardPage() {
   const [
@@ -14,6 +15,7 @@ export default async function AdminDashboardPage() {
     recentOrders,
     totalRevenueResult,
     customerCount,
+    inventoryStats,
     lowStockProducts,
     categoriesCount,
     couponsCount,
@@ -28,11 +30,8 @@ export default async function AdminDashboardPage() {
       where: { paymentStatus: "paid" },
     }),
     prisma.user.count({ where: { role: "customer" } }),
-    prisma.productVariant.findMany({
-      where: { stock: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
-      include: { product: true },
-      take: 8,
-    }),
+    getInventoryStats(),
+    getLowStockItems(8),
     prisma.category.count(),
     prisma.coupon.count({ where: { active: true } }),
   ])
@@ -61,7 +60,7 @@ export default async function AdminDashboardPage() {
         <AdminStatCard label="Pending" value={pendingOrders} href="/admin/orders?status=pending" icon={Timer} tone={pendingOrders > 0 ? "warning" : "default"} />
         <AdminStatCard label="Customers" value={customerCount} href="/admin/customers/list" icon={Users} />
         <AdminStatCard label="Products" value={productCount} href="/admin/products" icon={Package} />
-        <AdminStatCard label="Low Stock" value={lowStockProducts.length} href="/admin/products?status=Active" icon={AlertTriangle} tone={lowStockProducts.length > 0 ? "warning" : "default"} />
+        <AdminStatCard label="Low Stock" value={inventoryStats.lowStockCount} href="/admin/inventory/low-stock" icon={AlertTriangle} tone={inventoryStats.lowStockCount > 0 ? "warning" : "default"} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
@@ -130,19 +129,19 @@ export default async function AdminDashboardPage() {
               <>
                 <div className="space-y-2">
                   {lowStockProducts.map((variant) => (
-                    <div key={variant.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
+                    <div key={variant.variantId} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-100">
                           <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate max-w-[160px]">{variant.product.name}</p>
+                          <p className="text-xs font-semibold text-slate-800 truncate max-w-[160px]">{variant.productName}</p>
                           <p className="text-[10px] text-slate-400">{variant.size} / {variant.color}</p>
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-2">
-                        <p className="text-[11px] font-bold text-amber-500 tabular-nums">{variant.stock} left</p>
-                        <Link href={`/admin/products/${variant.product.id}`} className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors">
+                        <p className="text-[11px] font-bold text-amber-500 tabular-nums">{variant.availableStock} left</p>
+                        <Link href={`/admin/products/${variant.productId}`} className="text-[10px] text-slate-400 hover:text-slate-700 transition-colors">
                           Edit
                         </Link>
                       </div>

@@ -1,3 +1,5 @@
+import { maskBangladeshPhone } from "@/lib/utils"
+
 const DRAFT_KEY = "doshok_checkout_draft"
 const STEP_KEY = "doshok_checkout_step"
 const BUY_NOW_KEY = "doshok_buy_now"
@@ -225,8 +227,7 @@ export function maskEmail(email: string): string {
 }
 
 export function maskPhone(phone: string): string {
-  if (!phone || phone.length < 4) return phone
-  return phone.slice(0, 2) + "****" + phone.slice(-2)
+  return maskBangladeshPhone(phone)
 }
 
 export function formatRelativeTime(timestamp: number): string {
