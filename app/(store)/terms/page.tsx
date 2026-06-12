@@ -1,12 +1,23 @@
 import type { Metadata } from "next"
 import { InfoPage } from "@/components/store/info-page"
 import { termsPage } from "@/lib/info-pages"
+import { getCmsPageData } from "@/lib/cms-pages"
 
-export const metadata: Metadata = {
-  title: "Terms & Conditions — Doshok",
-  description: "Clear terms for confident shopping. These terms explain how purchases, pricing, delivery, returns, account use, and content ownership work on Doshok.",
+export async function generateMetadata(): Promise<Metadata> {
+  const cmsPage = await getCmsPageData("terms")
+  if (cmsPage) {
+    return {
+      title: `Terms & Conditions — Doshok`,
+      description: cmsPage.description,
+    }
+  }
+  return {
+    title: "Terms & Conditions — Doshok",
+    description: "Clear terms for confident shopping. These terms explain how purchases, pricing, delivery, returns, account use, and content ownership work on Doshok.",
+  }
 }
 
-export default function TermsPage() {
-  return <InfoPage page={termsPage} />
+export default async function TermsPage() {
+  const cmsPage = await getCmsPageData("terms")
+  return <InfoPage page={cmsPage ?? termsPage} />
 }
