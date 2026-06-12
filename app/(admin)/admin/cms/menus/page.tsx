@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { AdminPageHeader, AdminSectionCard, AdminEmptyState } from "@/components/admin/admin-ui"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Plus, Pencil, Trash2, ExternalLink, Menu as MenuIcon } from "lucide-react"
+import { Plus, Pencil, Trash2, ExternalLink, Menu as MenuIcon, Upload } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type MenuItem = {
@@ -43,6 +43,7 @@ export default function CMSMenusPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const [formData, setFormData] = useState<MenuFormData>({
     title: "",
@@ -140,6 +141,25 @@ export default function CMSMenusPage() {
       toast.error("Something went wrong")
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleImportLegacy() {
+    setImporting(true)
+    try {
+      const res = await fetch("/api/menus/import-legacy", { method: "POST" })
+      const data = await res.json()
+      if (data.success) {
+        const { imported, skipped } = data.data
+        toast.success(`Import complete: ${imported} imported, ${skipped} skipped`)
+        fetchMenuItems()
+      } else {
+        toast.error(data.error ?? "Import failed")
+      }
+    } catch {
+      toast.error("Something went wrong")
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -291,7 +311,10 @@ export default function CMSMenusPage() {
         )}
       </AdminSectionCard>
 
-      <div className="flex justify-start">
+      <div className="flex justify-start gap-3">
+        <Button onClick={handleImportLegacy} disabled={importing} variant="outline" className="h-9 rounded-lg px-5 text-xs font-semibold">
+          <Upload className="h-3.5 w-3.5 mr-1.5" /> {importing ? "Importing..." : "Import legacy links"}
+        </Button>
         <Button onClick={openCreate} className="h-9 rounded-lg px-5 text-xs font-semibold">
           <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Menu Item
         </Button>

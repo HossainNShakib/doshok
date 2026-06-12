@@ -1,3 +1,6 @@
+export type LegacyFooterLink = { label: string; href: string; group: string }
+export type LegacyHeaderQuickLink = string
+
 export type OrderStatus =
   | "pending"
   | "confirmed"

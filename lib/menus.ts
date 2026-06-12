@@ -1,4 +1,33 @@
 import { prisma } from "@/lib/prisma"
+import type { LegacyFooterLink, LegacyHeaderQuickLink } from "@/types"
+
+function getLabelFromHref(href: string): string {
+  const map: Record<string, string> = {
+    "/products": "Products",
+    "/new-arrivals": "New Arrivals",
+    "/about": "About Doshok",
+    "/contact": "Contact",
+    "/faq": "FAQ",
+    "/size-guide": "Size Guide",
+    "/care-guide": "Care Guide",
+    "/track-order": "Track Order",
+    "/privacy": "Privacy Policy",
+    "/terms": "Terms",
+    "/return-policy": "Return Policy",
+    "/delivery": "Delivery",
+    "/shipping": "Shipping",
+    "/cookies": "Cookies",
+    "/help": "Help",
+    "/policy": "Policy",
+    "/stories": "Stories",
+    "/store-locator": "Store Locator",
+    "/gift-cards": "Gift Cards",
+    "/careers": "Careers",
+  }
+  return map[href] || href.replace("/", "").replace(/-/g, " ")
+}
+
+export { getLabelFromHref }
 
 export type MenuItemData = {
   id: string
