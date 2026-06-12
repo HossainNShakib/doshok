@@ -1,17 +1,16 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { getFooterMenu } from "@/lib/menus"
 import styles from "./site-footer.module.css"
 
-async function getSettings() {
-  try {
-    let settings = await prisma.siteSettings.findUnique({ where: { id: "default" } })
-    if (!settings) {
-      settings = await prisma.siteSettings.create({ data: { id: "default" } })
-    }
-    return settings
-  } catch {
-    return null
-  }
+type MenuItemData = {
+  id: string
+  title: string
+  url: string
+  target: string
+  order: number
+  parentId: string | null
+  children: MenuItemData[]
 }
 
 const DEFAULT_SHOP_LINKS = [
@@ -35,8 +34,23 @@ const DEFAULT_POLICY_LINKS = [
   ["Delivery", "/delivery"],
 ]
 
+async function getSettings() {
+  try {
+    let settings = await prisma.siteSettings.findUnique({ where: { id: "default" } })
+    if (!settings) {
+      settings = await prisma.siteSettings.create({ data: { id: "default" } })
+    }
+    return settings
+  } catch {
+    return null
+  }
+}
+
 export async function SiteFooter() {
-  const settings = await getSettings()
+  const [settings, menuItems] = await Promise.all([
+    getSettings(),
+    getFooterMenu(),
+  ])
 
   let footerLinks: { label: string; href: string; group: string }[] = []
   try {
@@ -46,6 +60,40 @@ export async function SiteFooter() {
   const shopLinks = footerLinks.filter(l => l.group === "Shop").map(l => [l.label, l.href] as [string, string])
   const helpLinks = footerLinks.filter(l => l.group === "Help").map(l => [l.label, l.href] as [string, string])
   const policyLinks = footerLinks.filter(l => l.group === "Policy").map(l => [l.label, l.href] as [string, string])
+
+  const useMenuItems = menuItems.length > 0
+  const groups: { title: string; links: [string, string][] }[] = []
+
+  if (useMenuItems) {
+    const groupMap = new Map<string, [string, string][]>()
+    menuItems.forEach(item => {
+      if (!item.parentId) {
+        const key = item.title
+        if (!groupMap.has(key)) {
+          groupMap.set(key, [])
+        }
+      }
+    })
+    menuItems.forEach(item => {
+      if (item.parentId) {
+        const parent = menuItems.find(p => p.id === item.parentId)
+        if (parent) {
+          if (!groupMap.has(parent.title)) {
+            groupMap.set(parent.title, [])
+          }
+          groupMap.get(parent.title)!.push([item.title, item.url])
+        }
+      } else if (item.children.length === 0) {
+        if (!groupMap.has("More")) {
+          groupMap.set("More", [])
+        }
+        groupMap.get("More")!.push([item.title, item.url])
+      }
+    })
+    groupMap.forEach((links, title) => {
+      groups.push({ title, links })
+    })
+  }
 
   const socials = [
     ["f", settings?.facebookUrl, "Facebook"],
@@ -98,43 +146,60 @@ export async function SiteFooter() {
           )}
         </div>
 
-        {(shopLinks.length > 0 || helpLinks.length > 0 || policyLinks.length > 0) ? (
+        {(useMenuItems ? groups.length > 0 : shopLinks.length > 0 || helpLinks.length > 0 || policyLinks.length > 0) ? (
           <>
-            {shopLinks.length > 0 && (
-              <div key="shop" className={styles.footCol}>
-                <h4>Shop</h4>
-                <ul>
-                  {shopLinks.map(([label, href]) => (
-                    <li key={label}>
-                      <Link href={href}>{label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {helpLinks.length > 0 && (
-              <div key="help" className={styles.footCol}>
-                <h4>Help</h4>
-                <ul>
-                  {helpLinks.map(([label, href]) => (
-                    <li key={label}>
-                      <Link href={href}>{label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {policyLinks.length > 0 && (
-              <div key="policy" className={styles.footCol}>
-                <h4>Policy</h4>
-                <ul>
-                  {policyLinks.map(([label, href]) => (
-                    <li key={label}>
-                      <Link href={href}>{label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {useMenuItems ? (
+              groups.map(({ title, links }) => links.length > 0 && (
+                <div key={title} className={styles.footCol}>
+                  <h4>{title}</h4>
+                  <ul>
+                    {links.map(([label, href]) => (
+                      <li key={label}>
+                        <Link href={href}>{label}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <>
+                {shopLinks.length > 0 && (
+                  <div key="shop" className={styles.footCol}>
+                    <h4>Shop</h4>
+                    <ul>
+                      {shopLinks.map(([label, href]) => (
+                        <li key={label}>
+                          <Link href={href}>{label}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {helpLinks.length > 0 && (
+                  <div key="help" className={styles.footCol}>
+                    <h4>Help</h4>
+                    <ul>
+                      {helpLinks.map(([label, href]) => (
+                        <li key={label}>
+                          <Link href={href}>{label}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {policyLinks.length > 0 && (
+                  <div key="policy" className={styles.footCol}>
+                    <h4>Policy</h4>
+                    <ul>
+                      {policyLinks.map(([label, href]) => (
+                        <li key={label}>
+                          <Link href={href}>{label}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </>
         ) : (

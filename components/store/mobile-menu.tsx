@@ -3,49 +3,62 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, User, Search, Package, LogOut } from "lucide-react"
+import { Menu, X, User, Search, Package, LogOut, ChevronRight } from "lucide-react"
 
-const DEFAULT_QUICK_LINKS = [
-  { label: "Help", href: "/help" },
-  { label: "Policy", href: "/policy" },
-  { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
-  { label: "FAQ", href: "/faq" },
-  { label: "Size Guide", href: "/size-guide" },
-  { label: "Care Guide", href: "/care-guide" },
-  { label: "Track Order", href: "/track-order" },
+const DEFAULT_NAV_LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/products", label: "Shop" },
+  { href: "/new-arrivals", label: "New Arrivals" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ]
 
-function getLabelFromHref(href: string): string {
-  const map: Record<string, string> = {
-    "/products": "Products",
-    "/new-arrivals": "New Arrivals",
-    "/about": "About",
-    "/contact": "Contact",
-    "/faq": "FAQ",
-    "/size-guide": "Size Guide",
-    "/care-guide": "Care Guide",
-    "/track-order": "Track Order",
-    "/privacy": "Privacy Policy",
-    "/terms": "Terms",
-    "/return-policy": "Return Policy",
-    "/delivery": "Delivery",
-    "/shipping": "Shipping",
-    "/cookies": "Cookies",
-    "/help": "Help",
-    "/policy": "Policy",
-    "/stories": "Stories",
-    "/store-locator": "Store Locator",
-    "/gift-cards": "Gift Cards",
-    "/careers": "Careers",
-  }
-  return map[href] || href.replace("/", "").replace(/-/g, " ")
+const DEFAULT_QUICK_LINKS = [
+  { href: "/help", label: "Help" },
+  { href: "/policy", label: "Policy" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/size-guide", label: "Size Guide" },
+  { href: "/care-guide", label: "Care Guide" },
+  { href: "/track-order", label: "Track Order" },
+]
+
+type MenuItemData = {
+  id: string
+  title: string
+  url: string
+  target: string
+  order: number
+  parentId: string | null
+  children: MenuItemData[]
+}
+
+function buildTree(items: MenuItemData[]): MenuItemData[] {
+  const map = new Map<string, MenuItemData>()
+  const roots: MenuItemData[] = []
+
+  items.forEach((item) => {
+    map.set(item.id, { ...item, children: [] })
+  })
+
+  items.forEach((item) => {
+    const node = map.get(item.id)!
+    if (item.parentId && map.has(item.parentId)) {
+      map.get(item.parentId)!.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  })
+
+  return roots
 }
 
 export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
-  const [quickLinks, setQuickLinks] = useState(DEFAULT_QUICK_LINKS)
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>([])
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setOpen(false)
@@ -57,20 +70,90 @@ export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
   }, [open])
 
   useEffect(() => {
-    fetch("/api/site-settings")
-      .then(r => r.json())
+    fetch("/api/menus?location=mobile")
+      .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d.success && d.data?.headerQuickLinks) {
-          try {
-            const links = JSON.parse(d.data.headerQuickLinks)
-            if (Array.isArray(links) && links.length > 0) {
-              setQuickLinks(links.map((href: string) => ({ label: getLabelFromHref(href), href })))
-            }
-          } catch {}
+        if (d?.success && Array.isArray(d.data) && d.data.length > 0) {
+          setMenuItems(buildTree(d.data))
         }
       })
       .catch(() => {})
   }, [])
+
+  const toggleExpand = (id: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const renderMenuItem = (item: MenuItemData, depth = 0) => {
+    const hasChildren = item.children.length > 0
+    const isExpanded = expandedItems.has(item.id)
+    const isExternal = item.target === "_blank"
+
+    if (hasChildren) {
+      return (
+        <div key={item.id}>
+          <button
+            onClick={() => toggleExpand(item.id)}
+            className={`flex items-center justify-between w-full px-4 py-3.5 rounded-lg text-sm font-medium transition-colors ${
+              isExpanded
+                ? "bg-primary/5 text-primary"
+                : "text-foreground/80 hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <span>{item.title}</span>
+            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+          </button>
+          {isExpanded && (
+            <div className="ml-4 border-l border-border/50 pl-2 mt-1 space-y-1">
+              {item.children.map(child => renderMenuItem(child, depth + 1))}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        key={item.id}
+        href={item.url}
+        target={isExternal ? "_blank" : undefined}
+        rel={isExternal ? "noopener noreferrer" : undefined}
+        onClick={() => setOpen(false)}
+        className="flex items-center px-4 py-3.5 rounded-lg text-sm font-medium transition-colors text-foreground/80 hover:bg-muted hover:text-foreground"
+      >
+        {item.title}
+      </Link>
+    )
+  }
+
+  const menuItemNavs = menuItems
+  const quickLinks = menuItems.length > 0 ? [] : DEFAULT_QUICK_LINKS
+
+  const renderDefaultLink = (link: { href: string; label: string }) => {
+    const active = pathname === link.href
+    return (
+      <Link
+        key={`${link.href}-${link.label}`}
+        href={link.href}
+        onClick={() => setOpen(false)}
+        className={`flex items-center px-4 py-3.5 rounded-lg text-sm font-medium transition-colors ${
+          active
+            ? "bg-primary/5 text-primary"
+            : "text-foreground/80 hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        {link.label}
+      </Link>
+    )
+  }
 
   return (
     <>
@@ -96,42 +179,31 @@ export function MobileMenu({ isLoggedIn }: { isLoggedIn?: boolean }) {
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/products", label: "Shop" },
-              { href: "/new-arrivals", label: "New Arrivals" },
-              { href: "/about", label: "About" },
-              { href: "/contact", label: "Contact" },
-            ].map((link) => {
-              const active = pathname === link.href
-              return (
-                <Link
-                  key={`${link.href}-${link.label}`}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center px-4 py-3.5 rounded-lg text-sm font-medium transition-colors ${
-                    active
-                      ? "bg-primary/5 text-primary"
-                      : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
+            {menuItems.length > 0 ? (
+              <>
+                {menuItemNavs.map((item) => renderMenuItem(item))}
+              </>
+            ) : (
+              <>
+                {DEFAULT_NAV_LINKS.map(renderDefaultLink)}
+              </>
+            )}
 
-            <div className="border-t border-border/50 my-3" />
-
-            {quickLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {quickLinks.length > 0 && (
+              <>
+                <div className="border-t border-border/50 my-3" />
+                {quickLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center px-4 py-3.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </>
+            )}
 
             <div className="border-t border-border/50 my-3" />
 

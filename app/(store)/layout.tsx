@@ -6,6 +6,7 @@ import { CartCount } from "@/components/store/cart-count"
 import { MobileMenu } from "@/components/store/mobile-menu"
 import { SiteFooter } from "@/components/store/site-footer"
 import { AnnouncementBar } from "@/components/store/announcement-bar"
+import { getDesktopMenu } from "@/lib/menus"
 import styles from "./layout.module.css"
 
 const DEFAULT_QUICK_LINKS = [
@@ -17,19 +18,32 @@ const DEFAULT_QUICK_LINKS = [
 
 async function getHeaderData() {
   try {
-    const [categories, settings] = await Promise.all([
+    const [categories, settings, menuItems] = await Promise.all([
       prisma.category.findMany({ orderBy: { name: "asc" }, take: 8 }),
       prisma.siteSettings.findUnique({ where: { id: "default" } }),
+      getDesktopMenu(),
     ])
     const topbarText = settings?.topbarText ?? "Inside Chattogram delivery available"
-    let quickLinks = DEFAULT_QUICK_LINKS
-    if (settings?.headerQuickLinks) {
+    let quickLinks: { label: string; href: string }[]
+
+    if (menuItems.length > 0) {
+      quickLinks = menuItems.map((item) => ({
+        label: item.title,
+        href: item.url,
+      }))
+    } else if (settings?.headerQuickLinks) {
       try {
         const links = JSON.parse(settings.headerQuickLinks)
         if (Array.isArray(links) && links.length > 0) {
           quickLinks = links.map((href: string) => ({ label: getLabelFromHref(href), href }))
+        } else {
+          quickLinks = DEFAULT_QUICK_LINKS
         }
-      } catch {}
+      } catch {
+        quickLinks = DEFAULT_QUICK_LINKS
+      }
+    } else {
+      quickLinks = DEFAULT_QUICK_LINKS
     }
     return { categories, topbarText, quickLinks }
   } catch {
