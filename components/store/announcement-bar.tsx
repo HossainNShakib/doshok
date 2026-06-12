@@ -1,17 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 
 type AnnouncementData = {
   text: string
   enabled: boolean
 }
 
-export function AnnouncementBar() {
-  const [data, setData] = useState<AnnouncementData>({ text: "", enabled: false })
+export function AnnouncementBar({ initial }: { initial?: { text: string; enabled: boolean } | null }) {
+  const [data, setData] = useState<AnnouncementData>(
+    initial ? { text: initial.text, enabled: initial.enabled } : { text: "", enabled: false }
+  )
 
   useEffect(() => {
+    if (initial) {
+      setData({ text: initial.text, enabled: initial.enabled })
+      return
+    }
     fetch("/api/homepage")
       .then(r => r.json())
       .then(d => {
@@ -23,7 +28,7 @@ export function AnnouncementBar() {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [initial])
 
   if (!data.enabled || !data.text) return null
 

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { PackageCheck } from "lucide-react"
+import { PackageCheck, Star } from "lucide-react"
 import { LOW_STOCK_THRESHOLD } from "@/types"
 
 type ProductCardProps = {
@@ -13,6 +13,8 @@ type ProductCardProps = {
     images: string[]
     category?: { name: string; slug: string }
     variants: { stock: number }[]
+    averageRating?: number | null
+    reviewCount?: number
   }
 }
 
@@ -84,6 +86,13 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           )}
         </div>
+        {product.reviewCount && product.reviewCount > 0 && (
+          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <span className="font-semibold">{Number(product.averageRating).toFixed(1)}</span>
+            <span>({product.reviewCount})</span>
+          </div>
+        )}
       </div>
     </Link>
   )

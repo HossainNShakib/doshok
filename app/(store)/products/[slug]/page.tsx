@@ -60,7 +60,12 @@ export default async function ProductDetailPage({
 
   const product = await prisma.product.findFirst({
     where: isPreview && session?.user ? { slug } : { slug, status: "Active" },
-    include: { variants: true, category: true, specifications: { orderBy: { position: "asc" } }, sizeCharts: { include: { sizeChart: { include: { rows: { orderBy: { position: "asc" } } } } } } },
+    include: {
+      variants: true,
+      category: true,
+      specifications: { orderBy: { position: "asc" } },
+      sizeCharts: { include: { sizeChart: { include: { rows: { orderBy: { position: "asc" } } } } } },
+    },
   })
 
   if (!product) notFound()

@@ -15,26 +15,26 @@ const DEFAULT_QUICK_LINKS = [
   { label: "Track Order", href: "/track-order" },
 ]
 
-async function getHeaderCategories() {
+async function getHeaderData() {
   try {
-    return await prisma.category.findMany({
-      orderBy: { name: "asc" },
-      take: 8,
-    })
-  } catch {
-    return []
-  }
-}
-
-async function getHeaderLinks() {
-  try {
-    const settings = await prisma.siteSettings.findUnique({ where: { id: "default" } })
+    const [categories, settings] = await Promise.all([
+      prisma.category.findMany({ orderBy: { name: "asc" }, take: 8 }),
+      prisma.siteSettings.findUnique({ where: { id: "default" } }),
+    ])
+    const topbarText = settings?.topbarText ?? "Inside Chattogram delivery available"
+    let quickLinks = DEFAULT_QUICK_LINKS
     if (settings?.headerQuickLinks) {
-      const links = JSON.parse(settings.headerQuickLinks)
-      if (Array.isArray(links) && links.length > 0) return links.map((href: string) => ({ label: getLabelFromHref(href), href }))
+      try {
+        const links = JSON.parse(settings.headerQuickLinks)
+        if (Array.isArray(links) && links.length > 0) {
+          quickLinks = links.map((href: string) => ({ label: getLabelFromHref(href), href }))
+        }
+      } catch {}
     }
-  } catch {}
-  return DEFAULT_QUICK_LINKS
+    return { categories, topbarText, quickLinks }
+  } catch {
+    return { categories: [], topbarText: "Inside Chattogram delivery available", quickLinks: DEFAULT_QUICK_LINKS }
+  }
 }
 
 function getLabelFromHref(href: string): string {
@@ -64,22 +64,25 @@ function getLabelFromHref(href: string): string {
 }
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [categories, quickLinks] = await Promise.all([
-    getHeaderCategories(),
-    getHeaderLinks(),
+  const [{ categories, topbarText, quickLinks }, announcementData, session] = await Promise.all([
+    getHeaderData(),
+    prisma.homepageConfig.findUnique({
+      where: { id: "homepage" },
+      select: { announcementBarText: true, announcementBarEnabled: true },
+    }),
+    auth(),
   ])
-  const session = await auth()
   const isLoggedIn = !!session?.user
 
   return (
     <div className={styles.shell}>
       <div className={styles.page}>
-        <AnnouncementBar />
+        <AnnouncementBar initial={announcementData ? { text: announcementData.announcementBarText, enabled: announcementData.announcementBarEnabled } : null} />
         <header>
           <div className={styles.topbar}>
             <div className={styles.topbarLeft}>
               <MapPin className="h-[13px] w-[13px]" />
-              <span>Inside Chattogram delivery available</span>
+              <span>{topbarText}</span>
             </div>
             <div className={styles.topbarRight}>
               {quickLinks.map((link) => (

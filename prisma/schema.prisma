@@ -25,6 +25,7 @@ model User {
   sessions      Session[]
   orders        Order[]
   addresses     UserAddress[]
+  reviews       ProductReview[]
   emailTokens   EmailVerificationToken[]
   resetTokens   PasswordResetToken[]
   recoveryTokensCreated RecoveryCheckoutToken[] @relation("CreatedRecoveryTokens")
@@ -122,6 +123,7 @@ model Product {
   orderItems         OrderItem[]
   stockMovements     StockMovement[]
   sizeCharts         ProductSizeChart[]
+  reviews            ProductReview[]
   featured           Boolean          @default(false)
   status             String           @default("Draft")
   pageType           String           @default("NORMAL")
@@ -135,6 +137,8 @@ model Product {
   seoTitle           String?
   seoDescription     String?
   seoKeywords        String?
+  averageRating      Float?
+  reviewCount       Int              @default(0)
   seoImage           String?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -265,6 +269,7 @@ model Order {
   refundReason   String?
   refundTrxId    String?
   transactions   PaymentTransaction[]
+  reviews       ProductReview[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -348,6 +353,7 @@ model OtpVerification {
 model SiteSettings {
   id              String  @id @default("default")
   brandName       String  @default("DOSHOK")
+  tagline         String  @default("Style That Speaks")
   supportEmail    String  @default("hello@doshok.com")
   phone           String  @default("")
   whatsapp        String?
@@ -357,6 +363,7 @@ model SiteSettings {
   youtubeUrl      String?
   address         String  @default("We deliver across all districts of Bangladesh. Our operation hub is in Chattogram.")
   footerText      String  @default("Premium Bangladeshi fashion for the modern wardrobe.")
+  topbarText      String  @default("Inside Chattogram delivery available")
   footerLinks     String  @default("[]")
   headerQuickLinks String @default("[]")
   accentColor     String  @default("#364152")
@@ -372,6 +379,8 @@ model HomepageConfig {
   heroTitle             String @default("Doshok — Style That Speaks")
   heroSubtitle          String @default("Premium Bangladeshi fashion for the modern wardrobe.")
   heroImage             String?
+  heroCTAText           String @default("Shop Collection")
+  heroCTASecondaryText  String @default("About Us")
   featuredIds           String @default("[]")
   announcementBarText   String @default("")
   announcementBarEnabled Boolean @default(false)
@@ -514,4 +523,79 @@ model ProductSizeChart {
   @@unique([productId, sizeChartId])
   @@index([productId])
   @@index([sizeChartId])
+}
+
+model ProductReview {
+  id            String    @id @default(cuid())
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId       String?
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rating        Int
+  title         String?
+  content       String
+  isVerifiedBuyer Boolean @default(true)
+  status        String    @default("pending")
+  approvedAt    DateTime?
+  approvedBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+}
+
+model MenuItem {
+  id        String    @id @default(cuid())
+  title     String
+  url       String
+  target    String    @default("_self")
+  location  String
+  parentId  String?
+  parent    MenuItem?  @relation("MenuItemHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  MenuItem[] @relation("MenuItemHierarchy")
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([location])
+  @@index([parentId])
+  @@index([order])
+}
+
+model Page {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  excerpt      String?
+  content      String
+  seoTitle     String?
+  seoDescription String?
+  seoImage     String?
+  status       String   @default("draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status])
+}
+
+model Story {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  excerpt      String?
+  content      String
+  image        String?
+  status       String   @default("draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status])
 }

@@ -64,7 +64,11 @@ export async function SiteFooter() {
               {settings?.brandName || "Doshok"}<span className="text-[#364152]">.</span>com
             </span>
           </Link>
-          <div className={styles.brandTag}>Style That Speaks</div>
+          {settings?.tagline ? (
+            <div className={styles.brandTag}>{settings.tagline}</div>
+          ) : (
+            <div className={styles.brandTag}>Style That Speaks</div>
+          )}
           {settings?.footerText && (
             <div className={styles.brandBn}>{settings.footerText}</div>
           )}

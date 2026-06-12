@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { X, ImageIcon } from "lucide-react"
 import { AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui"
@@ -17,7 +18,15 @@ export default function AdminHomepagePage() {
   const [heroTitle, setHeroTitle] = useState("")
   const [heroSubtitle, setHeroSubtitle] = useState("")
   const [heroImage, setHeroImage] = useState("")
+  const [heroCTAText, setHeroCTAText] = useState("")
+  const [heroCTASecondaryText, setHeroCTASecondaryText] = useState("")
   const [featuredIds, setFeaturedIds] = useState<string[]>([])
+  const [announcementBarText, setAnnouncementBarText] = useState("")
+  const [announcementBarEnabled, setAnnouncementBarEnabled] = useState(false)
+  const [promoBannerText, setPromoBannerText] = useState("")
+  const [promoBannerImage, setPromoBannerImage] = useState("")
+  const [promoBannerLink, setPromoBannerLink] = useState("")
+  const [promoBannerEnabled, setPromoBannerEnabled] = useState(false)
   const [products, setProducts] = useState<{ id: string; name: string; price: number; images?: string[]; imageUrl?: string }[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
   const [loading, setLoading] = useState(false)
@@ -30,6 +39,14 @@ export default function AdminHomepagePage() {
           setHeroTitle(d.data.heroTitle ?? "")
           setHeroSubtitle(d.data.heroSubtitle ?? "")
           setHeroImage(d.data.heroImage ?? "")
+          setHeroCTAText(d.data.heroCTAText ?? "")
+          setHeroCTASecondaryText(d.data.heroCTASecondaryText ?? "")
+          setAnnouncementBarText(d.data.announcementBarText ?? "")
+          setAnnouncementBarEnabled(d.data.announcementBarEnabled ?? false)
+          setPromoBannerText(d.data.promoBannerText ?? "")
+          setPromoBannerImage(d.data.promoBannerImage ?? "")
+          setPromoBannerLink(d.data.promoBannerLink ?? "")
+          setPromoBannerEnabled(d.data.promoBannerEnabled ?? false)
           if (d.data.featuredIds) {
             try {
               const ids = typeof d.data.featuredIds === "string"
@@ -68,7 +85,13 @@ export default function AdminHomepagePage() {
     const res = await fetch("/api/homepage", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ heroTitle, heroSubtitle, heroImage, featuredIds }),
+      body: JSON.stringify({
+        heroTitle, heroSubtitle, heroImage,
+        heroCTAText, heroCTASecondaryText,
+        featuredIds,
+        announcementBarText, announcementBarEnabled,
+        promoBannerText, promoBannerImage, promoBannerLink, promoBannerEnabled,
+      }),
     })
     const data = await res.json()
     if (data.success) {
@@ -108,11 +131,21 @@ export default function AdminHomepagePage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="heroTitle" className="text-xs font-medium text-slate-600">Hero Title</Label>
-                    <Input id="heroTitle" value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="Summer Collection 2024" className="text-xs h-9" />
+                    <Input id="heroTitle" value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} placeholder="Fashion with&#10;Purpose." className="text-xs h-9" />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="heroSubtitle" className="text-xs font-medium text-slate-600">Hero Subtitle</Label>
                     <Input id="heroSubtitle" value={heroSubtitle} onChange={(e) => setHeroSubtitle(e.target.value)} placeholder="Premium quality at the best price" className="text-xs h-9" />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="heroCTAText" className="text-xs font-medium text-slate-600">Primary CTA Button</Label>
+                    <Input id="heroCTAText" value={heroCTAText} onChange={(e) => setHeroCTAText(e.target.value)} placeholder="Shop Collection" className="text-xs h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="heroCTASecondaryText" className="text-xs font-medium text-slate-600">Secondary CTA Button</Label>
+                    <Input id="heroCTASecondaryText" value={heroCTASecondaryText} onChange={(e) => setHeroCTASecondaryText(e.target.value)} placeholder="About Us" className="text-xs h-9" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -128,6 +161,79 @@ export default function AdminHomepagePage() {
                     label=""
                     helperText=""
                     folder="homepage"
+                  />
+                </div>
+              </div>
+            </AdminSectionCard>
+
+            <AdminSectionCard
+              title="Announcement Bar"
+              description="A thin bar at the top of every storefront page. Best for urgent offers or short messages."
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-medium text-slate-700">Enable Announcement Bar</Label>
+                    <p className="text-[11px] text-slate-400">Shown at the top of every page on the storefront.</p>
+                  </div>
+                  <Switch checked={announcementBarEnabled} onCheckedChange={(v) => setAnnouncementBarEnabled(v)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-600">Announcement Text</Label>
+                  <Input
+                    value={announcementBarText}
+                    onChange={(e) => setAnnouncementBarText(e.target.value)}
+                    placeholder="e.g. Free delivery inside Chattogram on orders over ৳999"
+                    disabled={!announcementBarEnabled}
+                    className={cn("text-xs h-9", !announcementBarEnabled && "opacity-50")}
+                  />
+                </div>
+              </div>
+            </AdminSectionCard>
+
+            <AdminSectionCard
+              title="Promo Banner"
+              description="An optional promotional banner shown below the hero section on the homepage."
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-medium text-slate-700">Enable Promo Banner</Label>
+                    <p className="text-[11px] text-slate-400">Appears below the hero banner on the homepage only.</p>
+                  </div>
+                  <Switch checked={promoBannerEnabled} onCheckedChange={(v) => setPromoBannerEnabled(v)} />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-slate-600">Promo Text</Label>
+                    <Input
+                      value={promoBannerText}
+                      onChange={(e) => setPromoBannerText(e.target.value)}
+                      placeholder="e.g. Summer Sale — Up to 40% off"
+                      disabled={!promoBannerEnabled}
+                      className={cn("text-xs h-9", !promoBannerEnabled && "opacity-50")}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-slate-600">Link</Label>
+                    <Input
+                      value={promoBannerLink}
+                      onChange={(e) => setPromoBannerLink(e.target.value)}
+                      placeholder="/products or https://..."
+                      disabled={!promoBannerEnabled}
+                      className={cn("text-xs h-9", !promoBannerEnabled && "opacity-50")}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-600">Banner Image</Label>
+                  <ImageUploader
+                    images={promoBannerImage ? [promoBannerImage] : []}
+                    onChange={(imgs) => setPromoBannerImage(imgs[0] || "")}
+                    single
+                    label=""
+                    helperText=""
+                    folder="promo"
                   />
                 </div>
               </div>

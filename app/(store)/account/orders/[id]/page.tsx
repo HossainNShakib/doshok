@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Package, MapPin, CreditCard, ShoppingCart, RotateCcw, AlertTriangle, RefreshCw, Clock } from "lucide-react"
+import { ArrowLeft, Package, MapPin, CreditCard, ShoppingCart, RotateCcw, AlertTriangle, RefreshCw, Clock, Star } from "lucide-react"
 import { toast } from "sonner"
 import { addToCart } from "@/lib/cart"
 import { OrderTimeline } from "@/components/store/order-timeline"
+import { ReviewModal } from "@/components/store/review-modal"
 import { getPhoneDisplayE164 } from "@/lib/utils"
 
 type Order = {
@@ -31,6 +32,7 @@ type Order = {
   createdAt: string
   items: {
     id: string
+    productId: string
     name: string
     size: string | null
     color: string | null
@@ -98,6 +100,12 @@ export default function AccountOrderDetailPage() {
   const [reordering, setReordering] = useState(false)
   const [retrying, setRetrying] = useState(false)
   const [reorderResult, setReorderResult] = useState<ReorderResult | null>(null)
+  const [reviewModal, setReviewModal] = useState<{
+    productId: string
+    productName: string
+    orderId: string
+    existingReview?: { id: string; rating: number; title: string; content: string }
+  } | null>(null)
 
   useEffect(() => {
     if (!phone) return
@@ -384,6 +392,20 @@ export default function AccountOrderDetailPage() {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-0.5">Qty: {item.quantity}</p>
+                  {order.orderStatus === "delivered" && (
+                    <button
+                      onClick={() => {
+                        setReviewModal({
+                          productId: item.id,
+                          productName: item.name,
+                          orderId: order.id,
+                        })
+                      }}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                    >
+                      <Star className="h-3.5 w-3.5" /> Write a Review
+                    </button>
+                  )}
                 </div>
                 <p className="font-medium">৳{(item.price * item.quantity).toLocaleString()}</p>
               </div>
@@ -413,6 +435,22 @@ export default function AccountOrderDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {reviewModal && (
+        <ReviewModal
+          open={true}
+          onClose={() => setReviewModal(null)}
+          onSuccess={() => {
+            toast.success("Review submitted! It will be visible after approval.")
+            setReviewModal(null)
+          }}
+          productId={reviewModal.productId}
+          productName={reviewModal.productName}
+          orderId={reviewModal.orderId}
+          existingReview={reviewModal.existingReview}
+          mode="create"
+        />
+      )}
     </div>
   )
 }

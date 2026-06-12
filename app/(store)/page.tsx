@@ -52,6 +52,11 @@ async function getHomepageData() {
     if (Array.isArray(parsed)) featuredIds = parsed
   } catch {}
 
+  const heroTitle = homepageConfig?.heroTitle ?? "Fashion with\nPurpose."
+  const heroSubtitle = homepageConfig?.heroSubtitle ?? "Thoughtful silhouettes, clean essentials, and occasion-ready pieces — made for your wardrobe."
+  const heroCTAText = homepageConfig?.heroCTAText ?? "Shop Collection"
+  const heroCTASecondaryText = homepageConfig?.heroCTASecondaryText ?? "About Us"
+
   let featuredProducts: HomeProduct[] = []
   if (featuredIds.length > 0) {
     const products = await prisma.product.findMany({
@@ -68,6 +73,10 @@ async function getHomepageData() {
     saleProducts,
     featuredProducts,
     heroImage: homepageConfig?.heroImage ?? null,
+    heroTitle,
+    heroSubtitle,
+    heroCTAText,
+    heroCTASecondaryText,
     promoBannerText: homepageConfig?.promoBannerText ?? "",
     promoBannerImage: homepageConfig?.promoBannerImage ?? null,
     promoBannerLink: homepageConfig?.promoBannerLink ?? "",
@@ -90,7 +99,7 @@ function CategoryCard({ category, index }: { category: HomeCategory; index: numb
 }
 
 export default async function HomePage() {
-  const { categories, latestProducts, saleProducts, featuredProducts, heroImage, promoBannerText, promoBannerImage, promoBannerLink, promoBannerEnabled } = await getHomepageData()
+  const { categories, latestProducts, saleProducts, featuredProducts, heroImage, heroTitle, heroSubtitle, heroCTAText, heroCTASecondaryText, promoBannerText, promoBannerImage, promoBannerLink, promoBannerEnabled } = await getHomepageData()
   const newArrivals = latestProducts.slice(0, 8)
   const discountedProducts = saleProducts.length > 0 ? saleProducts.slice(0, 4) : []
   const heroProducts = [...latestProducts, ...featuredProducts].filter((product, index, list) => (
@@ -110,17 +119,17 @@ export default async function HomePage() {
               <span className={styles.hash}>D</span>Style That Speaks
             </div>
             <h1 className={styles.heroTitle}>
-              Fashion with<br /><em>Purpose.</em>
+              {heroTitle.split("\n").map((line, i) => (
+                <span key={i}>{i === 1 ? <em>{line}</em> : line}<br /></span>
+              ))}
             </h1>
-            <p className={styles.sub}>
-              Thoughtful silhouettes, clean essentials, and occasion-ready pieces — made for your wardrobe.
-            </p>
+            <p className={styles.sub}>{heroSubtitle}</p>
             <div className={styles.ctaRow}>
               <Link href="/products" className={styles.btnPrimary}>
-                Shop Collection
+                {heroCTAText}
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
               </Link>
-              <Link href="/about" className={styles.btnGhost}>About Us</Link>
+              <Link href="/about" className={styles.btnGhost}>{heroCTASecondaryText}</Link>
             </div>
           </div>
         </section>
@@ -132,17 +141,17 @@ export default async function HomePage() {
             <span className={styles.hash}>D</span>Style That Speaks
           </div>
           <h1 className={styles.heroTitle}>
-            Fashion with<br /><em>Purpose.</em>
+            {heroTitle.split("\n").map((line, i) => (
+              <span key={i}>{i === 1 ? <em>{line}</em> : line}<br /></span>
+            ))}
           </h1>
-          <p className={styles.sub}>
-            Thoughtful silhouettes, clean essentials, and occasion-ready pieces — made for your wardrobe.
-          </p>
+          <p className={styles.sub}>{heroSubtitle}</p>
           <div className={styles.ctaRow}>
             <Link href="/products" className={styles.btnPrimary}>
-              Shop Collection
+              {heroCTAText}
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
             </Link>
-            <Link href="/about" className={styles.btnGhost}>About Us</Link>
+            <Link href="/about" className={styles.btnGhost}>{heroCTASecondaryText}</Link>
           </div>
         </div>
         <div className={styles.heroRight}>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ProductCard } from "@/components/store/product-card"
 import { trackRecentlyViewed, RecentlyViewed } from "@/components/store/recently-viewed"
+import { ProductReviews } from "@/components/store/product-reviews"
 import { toast } from "sonner"
 import { addToCart, validateStock } from "@/lib/cart"
 import { cn } from "@/lib/utils"
@@ -23,6 +24,7 @@ import {
   Package,
   ShieldCheck,
   MessageSquare,
+  Star,
 } from "lucide-react"
 
 type ProductWithVariants = {
@@ -64,6 +66,8 @@ type ProductWithVariants = {
       }[]
     }
   }[]
+  averageRating?: number | null
+  reviewCount?: number
 }
 
 type ProductSummary = {
@@ -94,8 +98,8 @@ export function ProductDetailClient({
   const [infoTab, setInfoTab] = useState<string>("Description")
 
   const hasSizeCharts = product.sizeCharts && product.sizeCharts.length > 0
-  const INFO_TABS = ["Description", "Specifications", "Delivery & Return"]
-  const ALL_TABS = hasSizeCharts ? [...INFO_TABS, "Size Guide"] : INFO_TABS
+  const INFO_TABS = ["Description", "Specifications", "Delivery & Return", "Reviews"]
+  const ALL_TABS = hasSizeCharts ? [...INFO_TABS.slice(0, 1), "Size Guide", ...INFO_TABS.slice(1)] : INFO_TABS
 
   useEffect(() => {
     trackRecentlyViewed({
@@ -276,6 +280,15 @@ export function ProductDetailClient({
             <h1 className="text-2xl font-black leading-tight tracking-[-0.03em] md:text-3xl">{product.name}</h1>
             {product.shortDescription && (
               <p className="mt-2 text-sm text-muted-foreground">{product.shortDescription}</p>
+            )}
+            {product.reviewCount && product.reviewCount > 0 && (
+              <div className="mt-2 flex items-center gap-1.5 text-sm">
+                <div className="flex items-center gap-1">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <span className="font-bold">{Number(product.averageRating).toFixed(1)}</span>
+                </div>
+                <span className="text-muted-foreground">({product.reviewCount} review{product.reviewCount !== 1 ? "s" : ""})</span>
+              </div>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className={cn("font-bold", isSoldOut ? "text-red-500" : "text-foreground")}>
@@ -578,6 +591,11 @@ export function ProductDetailClient({
           {infoTab === "Size Guide" && !hasSizeCharts && (
             <div className="space-y-4 text-sm text-muted-foreground">
               <p>This product does not have a size guide attached. Contact us for sizing help.</p>
+            </div>
+          )}
+          {infoTab === "Reviews" && (
+            <div>
+              <ProductReviews productId={product.id} initialSummary={{ averageRating: product.averageRating ?? null, reviewCount: product.reviewCount ?? 0 }} />
             </div>
           )}
         </div>
