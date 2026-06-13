@@ -389,7 +389,7 @@ export function CheckoutForm() {
           upazilaId: draft.upazilaId,
           upazilaName: draft.upazilaName,
           fullAddress: draft.fullAddress,
-          note: draft.note,
+          notes: draft.note,
           paymentMethod,
           couponCode: couponApplied ? couponCode : undefined,
           items: items.map((item) => ({

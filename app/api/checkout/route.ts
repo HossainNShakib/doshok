@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const parsed = checkoutSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.issues[0]?.message ?? "Invalid input")
 
-    const { items, paymentMethod, couponCode, ...customer } = parsed.data
+    const { items, paymentMethod, couponCode, notes, ...customer } = parsed.data
 
     const customerPhone = getPhoneServerValue(customer.phone)
     const session = await auth()
@@ -157,6 +157,7 @@ export async function POST(request: NextRequest) {
           paymentStatus: "pending",
           orderStatus: "pending",
           couponCode: couponCode || null,
+          notes: notes || null,
           address: {
             create: {
               division: customer.divisionName,

@@ -292,7 +292,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
           upazilaId,
           upazilaName,
           fullAddress,
-          note,
+          notes: note,
           paymentMethod,
           couponCode: couponApplied ? couponCode : undefined,
           items: [

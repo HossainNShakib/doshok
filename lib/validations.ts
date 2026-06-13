@@ -106,7 +106,7 @@ export const checkoutSchema = z.object({
   fullAddress: z.string().min(1),
   paymentMethod: z.string().min(1),
   couponCode: z.string().optional(),
-  phoneVerifiedToken: z.string().min(1, "Phone verification is required"),
+  notes: z.string().optional(),
   items: z.array(z.object({
     productId: z.string(),
     variantId: z.string().optional(),

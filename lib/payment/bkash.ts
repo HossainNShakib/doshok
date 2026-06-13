@@ -358,14 +358,26 @@ export async function processFailedPayment(
     const terminalStatuses = ["cancelled", "returned", "shipped", "delivered"]
     if (terminalStatuses.includes(order.orderStatus)) return
 
+    const wasDeducted = await tx.stockMovement.findFirst({
+      where: { orderId, type: "order_confirmed_deducted" },
+      select: { id: true },
+    })
+
     const stockRestoredAt = new Date()
 
     for (const item of order.items) {
       if (item.variantId) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        })
+        if (wasDeducted) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          })
+        } else {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { reservedStock: { decrement: item.quantity } },
+          })
+        }
       }
     }
 
@@ -449,12 +461,24 @@ export async function expirePendingPayment(
       return
     }
 
+    const wasDeducted = await tx.stockMovement.findFirst({
+      where: { orderId, type: "order_confirmed_deducted" },
+      select: { id: true },
+    })
+
     for (const item of order.items) {
       if (item.variantId) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        })
+        if (wasDeducted) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          })
+        } else {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { reservedStock: { decrement: item.quantity } },
+          })
+        }
       }
     }
 
@@ -515,12 +539,24 @@ export async function restoreStockForPaymentFailure(orderId: string): Promise<bo
       return
     }
 
+    const wasDeducted = await tx.stockMovement.findFirst({
+      where: { orderId, type: "order_confirmed_deducted" },
+      select: { id: true },
+    })
+
     for (const item of order.items) {
       if (item.variantId) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        })
+        if (wasDeducted) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          })
+        } else {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: { reservedStock: { decrement: item.quantity } },
+          })
+        }
       }
     }
 

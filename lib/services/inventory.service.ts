@@ -199,6 +199,18 @@ export async function releaseStockForOrder(
 export async function finalizeStockDeductionForDeliveredOrder(
   orderId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const alreadyDelivered = await prisma.stockMovement.findFirst({
+    where: { orderId, type: "order_delivered_deducted" },
+    select: { id: true },
+  })
+  if (alreadyDelivered) return { success: true }
+
+  const alreadyConfirmed = await prisma.stockMovement.findFirst({
+    where: { orderId, type: "order_confirmed_deducted" },
+    select: { id: true },
+  })
+  if (alreadyConfirmed) return { success: true }
+
   const reservedMovements = await prisma.stockMovement.findMany({
     where: { orderId, type: "order_reserved" },
     select: { variantId: true, quantity: true, productId: true },
