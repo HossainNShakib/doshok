@@ -398,7 +398,8 @@ model OtpVerification {
 model PhoneOtpVerification {
   id                      String    @id @default(cuid())
   phone                   String
-  provider                String    @default("manual")
+  hashedOtp               String
+  provider                String    @default("mock")
   status                  String    @default("pending")
   attempts                Int       @default(0)
   resendCount             Int       @default(0)
