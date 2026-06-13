@@ -1,7 +1,6 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { success, error } from "@/lib/api-response"
-import { productSchema } from "@/lib/validations"
 import { auth } from "@/lib/auth"
 
 export async function GET(
@@ -12,11 +11,61 @@ export async function GET(
 
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { variants: true, category: true, specifications: { orderBy: { position: "asc" } }, sizeCharts: { include: { sizeChart: true } } },
+    include: {
+      variants: true,
+      category: true,
+      specifications: { orderBy: { position: "asc" } },
+      sizeCharts: { include: { sizeChart: true } },
+      relatedProducts: {
+        include: {
+          relatedProduct: {
+            include: {
+              variants: true,
+              category: true,
+            },
+          },
+        },
+        orderBy: { position: "asc" },
+      },
+      targetRelations: {
+        include: {
+          product: {
+            include: {
+              variants: true,
+              category: true,
+            },
+          },
+        },
+        orderBy: { position: "asc" },
+      },
+    },
   })
 
   if (!product) return error("Not found", 404)
-  return success(product)
+
+  const groupedRelations: Record<string, unknown[]> = {
+    RELATED: [],
+    CROSS_SELL: [],
+    UPSELL: [],
+  }
+
+  product.relatedProducts.forEach((r) => {
+    if (r.relatedProduct.status === "Active") {
+      groupedRelations[r.type] = groupedRelations[r.type] || []
+      groupedRelations[r.type].push(r.relatedProduct)
+    }
+  })
+
+  product.targetRelations.forEach((r) => {
+    if (r.product.status === "Active") {
+      groupedRelations[r.type] = groupedRelations[r.type] || []
+      groupedRelations[r.type].push(r.product)
+    }
+  })
+
+  const { relatedProducts, targetRelations, ...productData } = product
+
+  return success({ ...productData, relations: groupedRelations })
 }
 
 export async function PATCH(
@@ -31,7 +80,7 @@ export async function PATCH(
 
     const body = await request.json()
 
-    const { variants, specifications, sizeChartIds, ...productData } = body
+    const { variants, specifications, sizeChartIds, relatedProductIds, crossSellProductIds, upsellProductIds, ...productData } = body
 
     if (variants && Array.isArray(variants)) {
       const existingVariants = await prisma.productVariant.findMany({
@@ -106,12 +155,92 @@ export async function PATCH(
       }
     }
 
+    if (relatedProductIds !== undefined || crossSellProductIds !== undefined || upsellProductIds !== undefined) {
+      await prisma.productRelation.deleteMany({ where: { productId: id } })
+
+      const relationsToCreate: { relatedProductId: string; type: string; position: number }[] = []
+
+      if (relatedProductIds && Array.isArray(relatedProductIds)) {
+        relatedProductIds.forEach((rid: string, idx: number) => {
+          if (rid !== id) {
+            relationsToCreate.push({ relatedProductId: rid, type: "RELATED", position: idx })
+          }
+        })
+      }
+      if (crossSellProductIds && Array.isArray(crossSellProductIds)) {
+        crossSellProductIds.forEach((rid: string, idx: number) => {
+          if (rid !== id) {
+            relationsToCreate.push({ relatedProductId: rid, type: "CROSS_SELL", position: idx })
+          }
+        })
+      }
+      if (upsellProductIds && Array.isArray(upsellProductIds)) {
+        upsellProductIds.forEach((rid: string, idx: number) => {
+          if (rid !== id) {
+            relationsToCreate.push({ relatedProductId: rid, type: "UPSELL", position: idx })
+          }
+        })
+      }
+
+      if (relationsToCreate.length > 0) {
+        await prisma.productRelation.createMany({
+          data: relationsToCreate.map((r) => ({
+            productId: id,
+            relatedProductId: r.relatedProductId,
+            type: r.type,
+            position: r.position,
+          })),
+        })
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: productData,
-      include: { variants: true, category: true, specifications: { orderBy: { position: "asc" } }, sizeCharts: { include: { sizeChart: true } } },
+      include: {
+        variants: true,
+        category: true,
+        specifications: { orderBy: { position: "asc" } },
+        sizeCharts: { include: { sizeChart: true } },
+        relatedProducts: {
+          include: {
+            relatedProduct: {
+              include: { variants: true, category: true },
+            },
+          },
+          orderBy: { position: "asc" },
+        },
+        targetRelations: {
+          include: {
+            product: {
+              include: { variants: true, category: true },
+            },
+          },
+          orderBy: { position: "asc" },
+        },
+      },
     })
-    return success(product)
+
+    const groupedRelations: Record<string, unknown[]> = {
+      RELATED: [],
+      CROSS_SELL: [],
+      UPSELL: [],
+    }
+    product.relatedProducts.forEach((r) => {
+      if (r.relatedProduct.status === "Active") {
+        groupedRelations[r.type] = groupedRelations[r.type] || []
+        groupedRelations[r.type].push(r.relatedProduct)
+      }
+    })
+    product.targetRelations.forEach((r) => {
+      if (r.product.status === "Active") {
+        groupedRelations[r.type] = groupedRelations[r.type] || []
+        groupedRelations[r.type].push(r.product)
+      }
+    })
+
+    const { relatedProducts, targetRelations, ...productDataRest } = product
+    return success({ ...productDataRest, relations: groupedRelations })
   } catch {
     return error("Failed to update product")
   }

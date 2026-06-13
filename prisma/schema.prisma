@@ -142,6 +142,9 @@ model Product {
   seoImage           String?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
+
+  relatedProducts    ProductRelation[] @relation("ProductRelations")
+  targetRelations    ProductRelation[] @relation("ProductTargets")
 }
 
 model ProductSpecification {
@@ -621,4 +624,21 @@ model CareerPost {
   @@index([slug])
   @@index([status])
   @@index([createdAt])
+}
+
+model ProductRelation {
+  id               String   @id @default(cuid())
+  productId        String
+  product          Product  @relation("ProductRelations", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProductId String
+  relatedProduct   Product  @relation("ProductTargets", fields: [relatedProductId], references: [id], onDelete: Cascade)
+  type             String
+  position         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([productId, relatedProductId, type])
+  @@index([productId])
+  @@index([relatedProductId])
+  @@index([type])
 }

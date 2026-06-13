@@ -45,6 +45,17 @@ export async function generateMetadata({
   }
 }
 
+type ProductSummary = {
+  id: string
+  name: string
+  slug: string
+  price: number
+  oldPrice: number | null
+  images: string[]
+  category?: { name: string; slug: string }
+  variants: { stock: number }[]
+}
+
 export default async function ProductDetailPage({
   params,
   searchParams,
@@ -65,41 +76,80 @@ export default async function ProductDetailPage({
       category: true,
       specifications: { orderBy: { position: "asc" } },
       sizeCharts: { include: { sizeChart: { include: { rows: { orderBy: { position: "asc" } } } } } },
+      relatedProducts: {
+        include: { relatedProduct: { include: { variants: true, category: true } } },
+        orderBy: { position: "asc" },
+      },
+      targetRelations: {
+        include: { product: { include: { variants: true, category: true } } },
+        orderBy: { position: "asc" },
+      },
     },
   })
 
   if (!product) notFound()
 
-  const sameCategoryProducts = await prisma.product.findMany({
-    where: {
-      status: "Active",
-      id: { not: product.id },
-      categoryId: product.categoryId,
-    },
-    include: { variants: true, category: true },
-    orderBy: [
-      { featured: "desc" },
-      { createdAt: "desc" },
-    ],
-    take: 8,
-  })
+  const explicitRelated = [
+    ...product.relatedProducts
+      .filter((r) => r.type === "RELATED" && r.relatedProduct.status === "Active")
+      .map((r) => r.relatedProduct),
+    ...product.targetRelations
+      .filter((r) => r.type === "RELATED" && r.product.status === "Active")
+      .map((r) => r.product),
+  ]
 
-    const relatedProducts =
-      sameCategoryProducts.length >= 4
-        ? sameCategoryProducts.slice(0, 8)
-        : await prisma.product.findMany({
-            where: {
-              status: "Active",
-              id: { not: product.id },
-            },
-            include: { variants: true, category: true },
-            orderBy: { createdAt: "desc" },
-            take: 8,
-          })
+  const crossSell = [
+    ...product.relatedProducts
+      .filter((r) => r.type === "CROSS_SELL" && r.relatedProduct.status === "Active")
+      .map((r) => r.relatedProduct),
+    ...product.targetRelations
+      .filter((r) => r.type === "CROSS_SELL" && r.product.status === "Active")
+      .map((r) => r.product),
+  ]
+
+  const upsell = [
+    ...product.relatedProducts
+      .filter((r) => r.type === "UPSELL" && r.relatedProduct.status === "Active")
+      .map((r) => r.relatedProduct),
+    ...product.targetRelations
+      .filter((r) => r.type === "UPSELL" && r.product.status === "Active")
+      .map((r) => r.product),
+  ]
+
+  let fallbackRelated: ProductSummary[] = []
+  if (explicitRelated.length === 0) {
+    fallbackRelated = await prisma.product.findMany({
+      where: { status: "Active", id: { not: product.id }, categoryId: product.categoryId },
+      include: { variants: true, category: true },
+      orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
+      take: 8,
+    })
+    if (fallbackRelated.length < 4) {
+      const extra = await prisma.product.findMany({
+        where: { status: "Active", id: { not: product.id }, categoryId: { not: product.categoryId } },
+        include: { variants: true, category: true },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      })
+      fallbackRelated = [...fallbackRelated, ...extra].slice(0, 8)
+    }
+  }
+
+  const relatedProducts: ProductSummary[] = explicitRelated.length > 0
+    ? explicitRelated.map((p) => ({ id: p.id, name: p.name, slug: p.slug, price: p.price, oldPrice: p.oldPrice, images: p.images, category: p.category, variants: p.variants }))
+    : fallbackRelated.map((p) => ({ id: p.id, name: p.name, slug: p.slug, price: p.price, oldPrice: p.oldPrice, images: p.images, category: p.category, variants: p.variants }))
+
+  const crossSellProducts: ProductSummary[] = crossSell.map((p) => ({ id: p.id, name: p.name, slug: p.slug, price: p.price, oldPrice: p.oldPrice, images: p.images, category: p.category, variants: p.variants }))
+  const upsellProducts: ProductSummary[] = upsell.map((p) => ({ id: p.id, name: p.name, slug: p.slug, price: p.price, oldPrice: p.oldPrice, images: p.images, category: p.category, variants: p.variants }))
 
   return (
     <div>
-      <ProductDetailClient product={product as unknown as Parameters<typeof ProductDetailClient>[0]["product"]} relatedProducts={relatedProducts} />
+      <ProductDetailClient
+        product={product as unknown as Parameters<typeof ProductDetailClient>[0]["product"]}
+        relatedProducts={relatedProducts}
+        crossSellProducts={crossSellProducts}
+        upsellProducts={upsellProducts}
+      />
     </div>
   )
 }

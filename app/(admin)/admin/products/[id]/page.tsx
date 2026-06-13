@@ -14,6 +14,7 @@ import { ImageUploader } from "@/components/admin/image-uploader"
 import { AlertTriangle, Archive, ExternalLink, EyeOff, Layers, Plus, Ruler, Save, SendHorizonal, Trash2 } from "lucide-react"
 import { LOW_STOCK_THRESHOLD } from "@/types"
 import { slugifyName } from "@/lib/slug"
+import { ProductRelationSelector } from "@/components/admin/product-relation-selector"
 
 type VariantInput = {
   size: string
@@ -65,6 +66,9 @@ export default function EditProductPage() {
   const [sizeChartIds, setSizeChartIds] = useState<string[]>([])
   const [allSizeCharts, setAllSizeCharts] = useState<{ id: string; name: string }[]>([])
   const [chartSearch, setChartSearch] = useState("")
+  const [relatedProductIds, setRelatedProductIds] = useState<string[]>([])
+  const [crossSellProductIds, setCrossSellProductIds] = useState<string[]>([])
+  const [upsellProductIds, setUpsellProductIds] = useState<string[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -109,6 +113,9 @@ export default function EditProductPage() {
           }))
         )
         setSizeChartIds((p.sizeCharts ?? []).map((sc: { sizeChart: { id: string } }) => sc.sizeChart.id))
+        setRelatedProductIds((p.relations?.RELATED ?? []).map((r: { id: string }) => r.id))
+        setCrossSellProductIds((p.relations?.CROSS_SELL ?? []).map((r: { id: string }) => r.id))
+        setUpsellProductIds((p.relations?.UPSELL ?? []).map((r: { id: string }) => r.id))
       }
       setFetching(false)
     }).catch(() => setFetching(false))
@@ -186,6 +193,9 @@ export default function EditProductPage() {
       seoImage: seoImage || undefined,
       specifications: specifications.filter((s) => s.label && s.value),
       sizeChartIds,
+      relatedProductIds,
+      crossSellProductIds,
+      upsellProductIds,
     }
 
     if (pageType === "LANDING") {
@@ -538,6 +548,32 @@ export default function EditProductPage() {
                 <Label htmlFor="defaultCouponCode">Default coupon code <span className="text-slate-400 font-normal text-[10px]">(optional)</span></Label>
                 <Input id="defaultCouponCode" value={defaultCouponCode} onChange={(e) => setDefaultCouponCode(e.target.value)} placeholder="WELCOME10" className="uppercase max-w-xs text-xs" />
               </div>
+            </div>
+          </AdminSectionCard>
+
+          <AdminSectionCard title="Product Recommendations">
+            <div className="space-y-6">
+              {(["RELATED", "CROSS_SELL", "UPSELL"] as const).map((type) => {
+                const label = type === "RELATED" ? "Related Products" : type === "CROSS_SELL" ? "Cross-sell Products" : "Upsell Products"
+                const desc = type === "RELATED" ? "Products shown as related. Label: You May Also Like." : type === "CROSS_SELL" ? "Products shown as complementary. Label: Pairs well with." : "Premium alternatives. Label: Upgrade your choice."
+                const state = type === "RELATED" ? relatedProductIds : type === "CROSS_SELL" ? crossSellProductIds : upsellProductIds
+                const setState = type === "RELATED" ? setRelatedProductIds : type === "CROSS_SELL" ? setCrossSellProductIds : setUpsellProductIds
+
+                return (
+                  <div key={type} className="space-y-2">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">{label}</p>
+                      <p className="text-[10px] text-slate-400">{desc}</p>
+                    </div>
+                    <ProductRelationSelector
+                      selectedIds={state}
+                      onChange={setState}
+                      excludeId={productId}
+                      label={label}
+                    />
+                  </div>
+                )
+              })}
             </div>
           </AdminSectionCard>
 

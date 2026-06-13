@@ -84,9 +84,13 @@ type ProductSummary = {
 export function ProductDetailClient({
   product,
   relatedProducts,
+  crossSellProducts,
+  upsellProducts,
 }: {
   product: ProductWithVariants
   relatedProducts: ProductSummary[]
+  crossSellProducts?: ProductSummary[]
+  upsellProducts?: ProductSummary[]
 }) {
   const router = useRouter()
   const [selectedImage, setSelectedImage] = useState(0)
@@ -608,6 +612,32 @@ export function ProductDetailClient({
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
             {relatedProducts.slice(0, 4).map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {crossSellProducts && crossSellProducts.length > 0 && (
+        <section className="mt-6 pb-4">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-xl font-black">Pairs Well With</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
+            {crossSellProducts.slice(0, 4).map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {upsellProducts && upsellProducts.length > 0 && (
+        <section className="mt-6 pb-4">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-xl font-black">Upgrade Your Choice</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-5 lg:grid-cols-4">
+            {upsellProducts.slice(0, 4).map((item) => (
               <ProductCard key={item.id} product={item} />
             ))}
           </div>
