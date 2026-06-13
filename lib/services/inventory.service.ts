@@ -16,6 +16,7 @@ export type MovementType =
   | "manual_adjustment"
   | "order_reserved"
   | "order_reservation_released"
+  | "order_reservation_expired"
   | "order_confirmed_deducted"
   | "order_delivered_deducted"
   | "order_cancelled_restored"
