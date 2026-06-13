@@ -21,6 +21,7 @@ export default async function LandingPage({
     include: {
       variants: true,
       category: true,
+      landingPageSetting: true,
     },
   })
 

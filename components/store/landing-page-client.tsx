@@ -10,9 +10,9 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import type { DeliveryZone } from "@/types"
 import { DELIVERY_ZONE_NAMES } from "@/types"
-import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus, ChevronLeft, ChevronRight, Smartphone, User, LogIn, UserPlus } from "lucide-react"
+import { CheckCircle, Truck, Shield, Tag, CreditCard, Minus, Plus, ChevronLeft, ChevronRight, Smartphone, User, LogIn, UserPlus, Clock } from "lucide-react"
 import Link from "next/link"
-import { getPhoneInputValue, getPhoneDisplayE164 } from "@/lib/utils"
+import { normalizePhoneToE164, isValidBdPhone } from "@/lib/checkout/phone"
 import { useSession } from "next-auth/react"
 import { getDivisions, getDistrictsByDivision, getUpazilasByDistrict } from "@/lib/bangladesh-address"
 
@@ -24,6 +24,14 @@ type PaymentMethodSetting = {
   supportsPartialPayment: boolean
   supportsCodDeliveryCharge: boolean
   instructions: string | null
+}
+
+type CheckoutSettings = {
+  checkoutV2Enabled: boolean
+  otpRequired: boolean
+  otpCooldownSeconds: number
+  otpTtlSeconds: number
+  checkoutTokenTtlSeconds: number
 }
 
 const ONLINE_PROVIDERS = ["BKASH", "NAGAD", "ROCKET", "UPAY", "SSLCOMMERZ", "AAMARPAY"]
@@ -48,6 +56,11 @@ type ProductWithVariants = {
     stock: number
   }[]
   defaultCouponCode?: string | null
+  landingPageSetting?: {
+    autoCouponCode?: string | null
+    couponOverrideEnabled: boolean
+    quantityLimit?: number | null
+  } | null
 }
 
 type LandingPageClientProps = {
@@ -81,6 +94,28 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const [couponLoading, setCouponLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+
+  const [checkoutSettings, setCheckoutSettings] = useState<CheckoutSettings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const idempotencyKeyRef = useRef<string>("")
+
+  const [otpState, setOtpState] = useState<"idle" | "sending" | "sent" | "verifying" | "verified" | "error">("idle")
+  const [otpCode, setOtpCode] = useState("")
+  const [otpError, setOtpError] = useState("")
+  const [cooldownRemaining, setCooldownRemaining] = useState(0)
+  const [checkoutVerificationToken, setCheckoutVerificationToken] = useState<string | null>(null)
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null)
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const [couponScope, setCouponScope] = useState<string | null>(null)
+  const [productDiscount, setProductDiscount] = useState(0)
+  const [deliveryDiscount, setDeliveryDiscount] = useState(0)
+  const [discountedProductTotal, setDiscountedProductTotal] = useState(0)
+  const [finalDeliveryFeeDisplay, setFinalDeliveryFeeDisplay] = useState(0)
+  const [grandTotal, setGrandTotal] = useState(0)
+
+  const isV2 = checkoutSettings?.checkoutV2Enabled ?? false
+  const otpRequired = checkoutSettings?.otpRequired ?? true
 
   // Form fields
   const [name, setName] = useState("")
@@ -117,13 +152,16 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const deliveryFee = deliveryFees[deliveryZone]
   const subtotal = product.price * quantity
   const discount = couponDiscount
-  const total = subtotal + deliveryFee - discount
+  const displayTotal = isV2 && couponApplied
+    ? (grandTotal > 0 ? grandTotal : discountedProductTotal + finalDeliveryFeeDisplay)
+    : subtotal + deliveryFee - discount
 
-  // Auto-apply coupon from URL or product default
+  // Auto-apply coupon from URL, product default, or landing page setting
   useEffect(() => {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
     const urlCoupon = params?.get("coupon")
-    const code = urlCoupon || product.defaultCouponCode || ""
+    const lpCoupon = product.landingPageSetting?.autoCouponCode
+    const code = urlCoupon || lpCoupon || product.defaultCouponCode || ""
     if (code && !couponApplied) {
       setCouponCode(code)
     }
@@ -156,6 +194,47 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   }, [])
 
   useEffect(() => {
+    fetch("/api/checkout/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setCheckoutSettings(d.data as CheckoutSettings)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSettingsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.crypto) {
+      idempotencyKeyRef.current = window.crypto.randomUUID()
+    } else {
+      idempotencyKeyRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (otpState === "verified" && verifiedPhone && phone !== verifiedPhone) {
+      setOtpState("idle")
+      setOtpCode("")
+      setOtpError("")
+      setCheckoutVerificationToken(null)
+      setVerifiedPhone(null)
+      if (cooldownRef.current) {
+        clearInterval(cooldownRef.current)
+        cooldownRef.current = null
+      }
+      setCooldownRemaining(0)
+    }
+  }, [phone, otpState, verifiedPhone])
+
+  useEffect(() => {
     fetch("/api/delivery-fees")
       .then((r) => r.json())
       .then((d) => {
@@ -182,8 +261,11 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
         if (!name.trim()) errors.push("Full name is required")
         if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
           errors.push("Valid email is required")
-        if (!phone.trim() || !/^1[3-9]\d{8}$/.test(phone.trim()))
+        if (!phone.trim() || !isValidBdPhone(phone.trim()))
           errors.push("Enter a valid Bangladesh mobile number (01XXXXXXXXX)")
+        if (isV2 && otpRequired && otpState !== "verified") {
+          errors.push("Please verify your phone with OTP before continuing")
+        }
         break
       case 2:
         if (!districtId) errors.push("Division and district are required")
@@ -197,7 +279,7 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
         break
     }
     return errors
-  }, [step, selectedSize, selectedColor, name, email, phone, divisionId, districtId, upazilaId, fullAddress, couponCode, couponApplied])
+  }, [step, selectedSize, selectedColor, name, email, phone, divisionId, districtId, upazilaId, fullAddress, couponCode, couponApplied, isV2, otpRequired, otpState])
 
   const handleNext = useCallback(() => {
     const errors = validateCurrentStep()
@@ -226,12 +308,18 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim(), subtotal }),
+        body: JSON.stringify({ code: code.trim(), subtotal, deliveryFee }),
       })
       const d = await res.json()
       if (d.success) {
         setCouponApplied(true)
         setCouponDiscount(d.data.discount)
+        setCouponScope(d.data.couponScope ?? null)
+        setProductDiscount(d.data.productDiscount ?? 0)
+        setDeliveryDiscount(d.data.deliveryDiscount ?? 0)
+        setDiscountedProductTotal(d.data.discountedProductTotal ?? subtotal)
+        setFinalDeliveryFeeDisplay(d.data.finalDeliveryFee ?? deliveryFee)
+        setGrandTotal(d.data.grandTotal ?? (discountedProductTotal + finalDeliveryFeeDisplay))
         setCouponCode(code.trim().toUpperCase())
       }
     } catch {
@@ -248,17 +336,24 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: couponCode.trim(), subtotal }),
+        body: JSON.stringify({ code: couponCode.trim(), subtotal, deliveryFee }),
       })
       const d = await res.json()
       if (d.success) {
         setCouponApplied(true)
         setCouponDiscount(d.data.discount)
+        setCouponScope(d.data.couponScope ?? null)
+        setProductDiscount(d.data.productDiscount ?? 0)
+        setDeliveryDiscount(d.data.deliveryDiscount ?? 0)
+        setDiscountedProductTotal(d.data.discountedProductTotal ?? subtotal)
+        setFinalDeliveryFeeDisplay(d.data.finalDeliveryFee ?? deliveryFee)
+        setGrandTotal(d.data.grandTotal ?? (discountedProductTotal + finalDeliveryFeeDisplay))
         setCouponCode(couponCode.trim().toUpperCase())
         setCouponError("")
       } else {
         setCouponApplied(false)
         setCouponDiscount(0)
+        resetCouponDisplay()
         setCouponError(d.error ?? "Invalid coupon")
       }
     } catch {
@@ -268,41 +363,168 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
     }
   }
 
+  function resetCouponDisplay() {
+    setCouponDiscount(0)
+    setCouponScope(null)
+    setProductDiscount(0)
+    setDeliveryDiscount(0)
+    setDiscountedProductTotal(0)
+    setFinalDeliveryFeeDisplay(0)
+    setGrandTotal(0)
+  }
+
   function handleRemoveCoupon() {
     setCouponCode("")
-    setCouponDiscount(0)
     setCouponApplied(false)
     setCouponError("")
+    resetCouponDisplay()
+  }
+
+  async function handleSendOtp() {
+    if (!phone.trim() || !isValidBdPhone(phone.trim())) {
+      toast.error("Enter a valid Bangladesh mobile number")
+      return
+    }
+
+    const e164Phone = normalizePhoneToE164(phone.trim())
+    setOtpState("sending")
+    setOtpError("")
+
+    try {
+      const res = await fetch("/api/checkout/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: e164Phone }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setOtpState("sent")
+        const cooldown = d.data.cooldownSeconds ?? 30
+        setCooldownRemaining(cooldown)
+        startCooldown(cooldown)
+        toast.success(`OTP sent to ${d.data.maskedPhone ?? e164Phone}`)
+      } else {
+        setOtpState("error")
+        setOtpError(d.error ?? "Failed to send OTP")
+        toast.error(d.error ?? "Failed to send OTP")
+      }
+    } catch {
+      setOtpState("error")
+      setOtpError("Network error. Please try again.")
+    }
+  }
+
+  function startCooldown(seconds: number) {
+    if (cooldownRef.current) clearInterval(cooldownRef.current)
+    setCooldownRemaining(seconds)
+    cooldownRef.current = setInterval(() => {
+      setCooldownRemaining((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current)
+          cooldownRef.current = null
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  async function handleVerifyOtp() {
+    if (!otpCode.trim()) {
+      setOtpError("Enter the OTP code")
+      return
+    }
+    if (!phone.trim() || !isValidBdPhone(phone.trim())) {
+      toast.error("Invalid phone number")
+      return
+    }
+
+    const e164Phone = normalizePhoneToE164(phone.trim())
+    setOtpState("verifying")
+    setOtpError("")
+
+    try {
+      const res = await fetch("/api/checkout/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: e164Phone, code: otpCode.trim() }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setOtpState("verified")
+        setCheckoutVerificationToken(d.data.checkoutVerificationToken)
+        setVerifiedPhone(phone)
+        setOtpCode("")
+        setOtpError("")
+        if (cooldownRef.current) {
+          clearInterval(cooldownRef.current)
+          cooldownRef.current = null
+        }
+        setCooldownRemaining(0)
+        toast.success("Phone verified successfully")
+      } else {
+        setOtpState("sent")
+        setOtpError(d.error ?? "Invalid OTP")
+        toast.error(d.error ?? "Invalid OTP")
+      }
+    } catch {
+      setOtpState("sent")
+      setOtpError("Network error. Please try again.")
+    }
   }
 
   async function placeOrder() {
-    const e164Phone = getPhoneDisplayE164(phone)
+    const e164Phone = normalizePhoneToE164(phone.trim())
+
+    if (isV2 && otpRequired && !checkoutVerificationToken) {
+      toast.error("Please verify your phone with OTP before placing the order")
+      return
+    }
+
+    setLoading(true)
+
+    const payload: Record<string, unknown> = {
+      name,
+      email,
+      phone: e164Phone,
+      divisionId,
+      divisionName,
+      districtId,
+      districtName,
+      upazilaId,
+      upazilaName,
+      fullAddress,
+      notes: note,
+      paymentMethod,
+      couponCode: couponApplied ? couponCode : undefined,
+      items: [
+        {
+          productId: product.id,
+          variantId: selectedVariant?.id,
+          quantity,
+        },
+      ],
+    }
+
+    if (isV2) {
+      payload.idempotencyKey = idempotencyKeyRef.current
+      if (checkoutVerificationToken) {
+        payload.checkoutVerificationToken = checkoutVerificationToken
+      }
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (isV2) {
+      headers["X-Checkout-Session-Id"] = idempotencyKeyRef.current
+    }
+
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          phone: e164Phone,
-          divisionId,
-          divisionName,
-          districtId,
-          districtName,
-          upazilaId,
-          upazilaName,
-          fullAddress,
-          notes: note,
-          paymentMethod,
-          couponCode: couponApplied ? couponCode : undefined,
-          items: [
-            {
-              productId: product.id,
-              variantId: selectedVariant?.id,
-              quantity,
-            },
-          ],
-        }),
+        headers,
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (data.success) {
@@ -311,16 +533,20 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
         const orderId = order?.id
 
         if (paymentInitData?.paymentUrl && orderId) {
+          setLoading(false)
           window.location.href = paymentInitData.paymentUrl
           return
         }
 
         setDone(true)
+        setLoading(false)
         toast.success("Order placed successfully!")
       } else {
+        setLoading(false)
         toast.error(data.error ?? "Order failed")
       }
     } catch {
+      setLoading(false)
       toast.error("Something went wrong")
     }
   }
@@ -599,13 +825,118 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                   inputMode="tel"
                   value={phone}
                   onChange={(e) => {
-                    setPhone(getPhoneInputValue(e.target.value))
+                    setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
                   }}
                   placeholder="1XXXXXXXXX"
                   className="h-11 rounded-xl"
                 />
               </div>
             </div>
+
+            {/* OTP Panel */}
+            {isV2 && otpRequired && (
+              <div className="border-t border-border/50 pt-5">
+                {otpState === "verified" ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium text-green-700">Phone Verified</p>
+                        <p className="text-xs text-green-600">{normalizePhoneToE164(phone)}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpState("idle")
+                        setCheckoutVerificationToken(null)
+                        setVerifiedPhone(null)
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Phone Verification</span>
+                    </div>
+
+                    {otpState === "idle" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSendOtp}
+                        disabled={!phone.trim() || !isValidBdPhone(phone.trim())}
+                        className="h-11 rounded-xl"
+                      >
+                        <Smartphone className="h-4 w-4 mr-2" />
+                        Send OTP
+                      </Button>
+                    )}
+
+                    {otpState === "sending" && (
+                      <p className="text-sm text-muted-foreground animate-pulse">Sending OTP...</p>
+                    )}
+
+                    {(otpState === "sent" || otpState === "verifying" || otpState === "error") && (
+                      <div className="space-y-3">
+                        <p className="text-xs text-muted-foreground">
+                          Enter the 6-digit code sent to {normalizePhoneToE164(phone)}
+                        </p>
+                        <div className="flex gap-2">
+                          <Input
+                            value={otpCode}
+                            onChange={(e) => {
+                              setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                              setOtpError("")
+                            }}
+                            placeholder="000000"
+                            className="h-11 rounded-xl w-40 text-center text-lg tracking-widest font-mono"
+                            disabled={otpState === "verifying"}
+                            maxLength={6}
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleVerifyOtp}
+                            disabled={otpState === "verifying" || otpCode.length < 6}
+                            className="h-11 rounded-xl"
+                          >
+                            {otpState === "verifying" ? "Verifying..." : "Verify"}
+                          </Button>
+                        </div>
+
+                        {otpError && (
+                          <p className="text-sm text-destructive">{otpError}</p>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSendOtp}
+                            disabled={cooldownRemaining > 0 || otpState === "verifying"}
+                            className="text-xs h-8"
+                          >
+                            Resend OTP
+                            {cooldownRemaining > 0 && (
+                              <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {cooldownRemaining}s
+                              </span>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-between gap-4">
               <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
                 <ChevronLeft className="h-4 w-4" /> Back
@@ -871,29 +1202,65 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                 <span className="text-muted-foreground">Subtotal ({quantity} item{quantity > 1 ? "s" : ""})</span>
                 <span className="font-medium">৳{subtotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Delivery Fee</span>
-                <span className="font-medium">৳{deliveryFee}</span>
-              </div>
-              {discount > 0 && (
+              {isV2 && productDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Product Discount {couponScope === "delivery" ? "" : `(${couponCode})`}</span>
+                  <span>-৳{productDiscount.toLocaleString()}</span>
+                </div>
+              )}
+              {isV2 && discountedProductTotal > 0 && discountedProductTotal !== subtotal && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Discounted Product Total</span>
+                  <span>৳{discountedProductTotal.toLocaleString()}</span>
+                </div>
+              )}
+              {!isV2 && discount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount ({couponCode})</span>
                   <span>-৳{discount.toLocaleString()}</span>
                 </div>
               )}
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Delivery Fee</span>
+                <span className="font-medium">৳{deliveryFee}</span>
+              </div>
+              {isV2 && deliveryDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Delivery Discount {couponScope === "product" ? "" : `(${couponCode})`}</span>
+                  <span>-৳{deliveryDiscount.toLocaleString()}</span>
+                </div>
+              )}
+              {isV2 && finalDeliveryFeeDisplay > 0 && finalDeliveryFeeDisplay !== deliveryFee && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Final Delivery Fee</span>
+                  <span>৳{finalDeliveryFeeDisplay.toLocaleString()}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>
-                <span>৳{total.toLocaleString()}</span>
+                <span>৳{displayTotal.toLocaleString()}</span>
               </div>
+              {isV2 && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex justify-between text-sm text-primary font-medium">
+                    <span>Pay Now</span>
+                    <span>—</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Due on Delivery</span>
+                    <span>—</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between gap-4">
               <Button type="button" variant="ghost" onClick={handleBack} className="gap-1.5">
                 <ChevronLeft className="h-4 w-4" /> Back
               </Button>
-              <Button type="button" onClick={handleNext} className="gap-1.5 h-11 rounded-xl px-6">
-                Next <ChevronRight className="h-4 w-4" />
+              <Button type="button" onClick={handleNext} className="gap-1.5 h-11 rounded-xl px-6" disabled={loading}>
+                {loading ? "Placing Order..." : `Place Order — ৳${displayTotal.toLocaleString()}`}
               </Button>
             </div>
           </div>
