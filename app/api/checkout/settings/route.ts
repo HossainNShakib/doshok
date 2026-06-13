@@ -17,6 +17,8 @@ export async function GET() {
         otpTtlSeconds: 300,
         checkoutTokenTtlSeconds: 900,
         otpProvider: (process.env.OTP_PROVIDER ?? "mock") as "firebase" | "mock",
+        defaultPaymentRule: "cod_only" as const,
+        defaultPaymentRuleValue: null,
       })
     }
 
@@ -27,6 +29,8 @@ export async function GET() {
       otpTtlSeconds: settings.otpTtlSeconds,
       checkoutTokenTtlSeconds: settings.checkoutTokenTtlSeconds,
       otpProvider: (process.env.OTP_PROVIDER ?? "mock") as "firebase" | "mock",
+      defaultPaymentRule: settings.defaultPaymentRule,
+      defaultPaymentRuleValue: settings.defaultPaymentRuleValue,
     })
   } catch {
     return error("Failed to fetch checkout settings")

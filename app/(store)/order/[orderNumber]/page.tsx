@@ -254,6 +254,12 @@ export default async function OrderConfirmationPage({
               </p>
             </>
           )}
+          {order.notes && (
+            <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-500 mb-1">Order Note</p>
+              <p className="text-sm text-amber-800">{order.notes}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

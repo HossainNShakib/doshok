@@ -19,6 +19,7 @@ export type OrderForRedx = {
   customerPhone: string
   total: number
   paidAmount: number
+  dueAmount: number
   paymentMethod: string
   paymentStatus: string
   items: { quantity: number; name: string }[]
@@ -117,8 +118,7 @@ export async function mapOrderToRedxPayload(
   order: OrderForRedx,
   storeId: string
 ): Promise<RedxParcelPayload> {
-  const codAmount = order.total - order.paidAmount
-  const amountToCollect = order.paymentStatus.toLowerCase() === "paid" ? 0 : codAmount
+  const amountToCollect = order.dueAmount > 0 ? order.dueAmount : 0
 
   const fullAddress = order.address
     ? [

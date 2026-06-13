@@ -31,6 +31,7 @@ type Shipment = {
   consignmentId: string | null
   customerNote: string | null
   adminNote: string | null
+  collectionAmount: number
   createdAt: string | Date
   updatedAt: string | Date
 }
@@ -259,6 +260,12 @@ export function OrderShipment({ orderId, initialShipment }: OrderShipmentProps) 
             <div className="rounded-2xl bg-neutral-50 p-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">Consignment ID</p>
               <p className="mt-1 font-mono text-xs font-bold">{shipment.consignmentId}</p>
+            </div>
+          )}
+          {shipment.collectionAmount > 0 && (
+            <div className="rounded-2xl bg-amber-50 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-500">Collection Amount (Courier Collects)</p>
+              <p className="mt-1 text-base font-black text-amber-800">৳{shipment.collectionAmount.toLocaleString()}</p>
             </div>
           )}
         </div>

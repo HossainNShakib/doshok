@@ -19,7 +19,7 @@ import { resolvePaymentRule } from "@/lib/checkout/payment-rule.service"
 import { isCheckoutVerificationTokenValid } from "@/lib/checkout/otp.service"
 import crypto from "crypto"
 
-const ONLINE_PROVIDERS = ["bkash", "nagad", "rocket", "upay", "sslcommerz", "aamarpay"]
+const ONLINE_PROVIDERS = ["bkash"]
 const PAYMENT_EXPIRY_HOURS = 2
 
 export async function POST(request: NextRequest) {
@@ -377,7 +377,7 @@ if (couponCode && discount > 0) {
       const bkashEnabled = await isBkashEnabled()
       if (bkashEnabled) {
         const callbackBase = process.env.NEXTAUTH_URL || "http://localhost:3000"
-        const paymentAmount = isV2 ? paymentResult.payNow : order.total
+        const paymentAmount = order.payNow > 0 ? order.payNow : order.total
         const bkashResult = await createBkashPayment(order.id, order.orderNumber, paymentAmount, callbackBase)
 
         if (!("error" in bkashResult)) {

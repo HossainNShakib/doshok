@@ -34,6 +34,7 @@ type Order = {
   bkashTrxId: string | null
   paymentVerifiedAt: string | null
   createdAt: string
+  notes: string | null
   shipment: ShipmentInfo | null
   items: {
     id: string
@@ -394,6 +395,12 @@ function Timeline({ currentStatus }: { currentStatus: string }) {
                     </>
                   )}
                 </div>
+                {order.notes && (
+                  <div className="mt-4 rounded-2xl bg-amber-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-500 mb-1">Order Note</p>
+                    <p className="text-sm text-amber-800">{order.notes}</p>
+                  </div>
+                )}
               </div>
             </div>
 

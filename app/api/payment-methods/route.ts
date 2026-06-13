@@ -3,10 +3,15 @@ import { success, error } from "@/lib/api-response"
 
 export const dynamic = "force-dynamic"
 
+const CUSTOMER_VISIBLE_PROVIDERS = ["COD", "BKASH"]
+
 export async function GET() {
   try {
     const methods = await prisma.paymentMethodSetting.findMany({
-      where: { enabled: true },
+      where: {
+        enabled: true,
+        provider: { in: CUSTOMER_VISIBLE_PROVIDERS },
+      },
       select: {
         provider: true,
         displayName: true,

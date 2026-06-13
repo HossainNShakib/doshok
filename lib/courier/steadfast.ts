@@ -19,6 +19,7 @@ export type OrderForSteadfast = {
   customerPhone: string
   total: number
   paidAmount: number
+  dueAmount: number
   paymentMethod: string
   paymentStatus: string
   items: { quantity: number; name: string }[]
@@ -112,8 +113,7 @@ export async function validateSteadfastCredentials(): Promise<SteadfastValidatio
 export async function mapOrderToSteadfastPayload(
   order: OrderForSteadfast
 ): Promise<SteadfastParcelPayload> {
-  const codAmount = order.total - order.paidAmount
-  const amountToCollect = codAmount > 0 ? codAmount : 0
+  const amountToCollect = order.dueAmount > 0 ? order.dueAmount : 0
 
   const fullAddress = order.address
     ? [

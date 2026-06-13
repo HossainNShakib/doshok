@@ -62,6 +62,8 @@ export async function POST(
     })
     if (!order) return error("Order not found", 404)
 
+    const collectionAmount = order.dueAmount > 0 ? order.dueAmount : 0
+
     const isPathao = parsed.data.courierProvider === "PATHAO"
 
     if (isPathao) {
@@ -72,6 +74,7 @@ export async function POST(
         customerPhone: order.customerPhone,
         total: order.total,
         paidAmount: order.paidAmount,
+        dueAmount: order.dueAmount,
         paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         items: order.items,
@@ -100,6 +103,7 @@ export async function POST(
             courierResponseJson: JSON.stringify(parcelResult.response),
             customerNote: parsed.data.customerNote || null,
             adminNote: parsed.data.adminNote || null,
+            collectionAmount,
           },
         }),
         prisma.order.update({
@@ -121,6 +125,7 @@ export async function POST(
         customerPhone: order.customerPhone,
         total: order.total,
         paidAmount: order.paidAmount,
+        dueAmount: order.dueAmount,
         paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         items: order.items,
@@ -144,6 +149,7 @@ export async function POST(
             courierResponseJson: JSON.stringify(parcelResult.response),
             customerNote: parsed.data.customerNote || null,
             adminNote: parsed.data.adminNote || null,
+            collectionAmount,
           },
         }),
         prisma.order.update({
@@ -165,6 +171,7 @@ export async function POST(
         customerPhone: order.customerPhone,
         total: order.total,
         paidAmount: order.paidAmount,
+        dueAmount: order.dueAmount,
         paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         items: order.items,
@@ -188,6 +195,7 @@ export async function POST(
             courierResponseJson: JSON.stringify(parcelResult.response),
             customerNote: parsed.data.customerNote || null,
             adminNote: parsed.data.adminNote || null,
+            collectionAmount,
           },
         }),
         prisma.order.update({

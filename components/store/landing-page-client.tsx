@@ -15,6 +15,7 @@ import Link from "next/link"
 import { normalizePhoneToE164, isValidBdPhone } from "@/lib/checkout/phone"
 import { FirebaseOtpPanel } from "@/components/store/firebase-otp-panel"
 import { useSession } from "next-auth/react"
+import { calculatePaymentAmounts, type PaymentRuleType } from "@/lib/checkout/payment-amount-client"
 import { getDivisions, getDistrictsByDivision, getUpazilasByDistrict } from "@/lib/bangladesh-address"
 
 type PaymentMethodSetting = {
@@ -34,9 +35,11 @@ type CheckoutSettings = {
   otpTtlSeconds: number
   checkoutTokenTtlSeconds: number
   otpProvider: "firebase" | "mock"
+  defaultPaymentRule: string
+  defaultPaymentRuleValue: number | null
 }
 
-const ONLINE_PROVIDERS = ["BKASH", "NAGAD", "ROCKET", "UPAY", "SSLCOMMERZ", "AAMARPAY"]
+const ONLINE_PROVIDERS = ["BKASH"]
 
 type ProductWithVariants = {
   id: string
@@ -50,6 +53,8 @@ type ProductWithVariants = {
   landingSubheadline?: string | null
   landingCopy?: string | null
   landingHeroImage?: string | null
+  paymentRuleOverride?: string | null
+  paymentRuleValueOverride?: number | null
   variants: {
     id: string
     size: string
@@ -62,6 +67,11 @@ type ProductWithVariants = {
     autoCouponCode?: string | null
     couponOverrideEnabled: boolean
     quantityLimit?: number | null
+    otpOverrideEnabled: boolean
+    otpOverride?: boolean | null
+    paymentOverrideEnabled: boolean
+    paymentRuleOverride?: string | null
+    paymentRuleValueOverride?: number | null
   } | null
 }
 
@@ -117,7 +127,10 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
   const [grandTotal, setGrandTotal] = useState(0)
 
   const isV2 = checkoutSettings?.checkoutV2Enabled ?? false
-  const otpRequired = checkoutSettings?.otpRequired ?? true
+  const baseOtpRequired = checkoutSettings?.otpRequired ?? true
+  const otpRequired = product.landingPageSetting?.otpOverrideEnabled
+    ? (product.landingPageSetting?.otpOverride ?? baseOtpRequired)
+    : baseOtpRequired
   const otpProvider = checkoutSettings?.otpProvider ?? "mock"
 
   // Form fields
@@ -159,11 +172,32 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
     ? (grandTotal > 0 ? grandTotal : discountedProductTotal + finalDeliveryFeeDisplay)
     : subtotal + deliveryFee - discount
 
+  const effectiveGrandTotal = isV2 && couponApplied
+    ? (grandTotal > 0 ? grandTotal : discountedProductTotal + finalDeliveryFeeDisplay)
+    : subtotal + deliveryFee - discount
+  const effectiveDeliveryFee = isV2 && couponApplied
+    ? (finalDeliveryFeeDisplay > 0 ? finalDeliveryFeeDisplay : deliveryFee)
+    : deliveryFee
+
+  const landingPayRule = product.landingPageSetting?.paymentOverrideEnabled
+    ? product.landingPageSetting?.paymentRuleOverride
+    : null
+  const productPayRule = product.paymentRuleOverride
+  const effectivePayRule: PaymentRuleType = (landingPayRule || productPayRule || checkoutSettings?.defaultPaymentRule || "cod_only") as PaymentRuleType
+  const effectivePayValue = (landingPayRule
+    ? product.landingPageSetting?.paymentRuleValueOverride
+    : productPayRule
+      ? product.paymentRuleValueOverride
+      : checkoutSettings?.defaultPaymentRuleValue) ?? null
+  const computedPayment = calculatePaymentAmounts(effectiveGrandTotal, effectiveDeliveryFee, effectivePayRule, effectivePayValue)
+
   // Auto-apply coupon from URL, product default, or landing page setting
   useEffect(() => {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
     const urlCoupon = params?.get("coupon")
-    const lpCoupon = product.landingPageSetting?.autoCouponCode
+    const lpCoupon = product.landingPageSetting?.couponOverrideEnabled
+      ? product.landingPageSetting?.autoCouponCode
+      : null
     const code = urlCoupon || lpCoupon || product.defaultCouponCode || ""
     if (code && !couponApplied) {
       setCouponCode(code)
@@ -1171,49 +1205,64 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
               ) : (
                 <RadioGroup
                   value={paymentMethod}
-                  onValueChange={(v) => setPaymentMethod(v)}
+                  onValueChange={(v) => {
+                    const target = paymentMethods.find((p) => p.provider.toLowerCase() === v)
+                    if (target && target.enabled && (target.provider === "COD" || target.provider === "BKASH")) {
+                      setPaymentMethod(v)
+                    }
+                  }}
                   className="space-y-3"
                 >
                   {paymentMethods.map((pm) => {
                     const isOnline = ONLINE_PROVIDERS.includes(pm.provider)
                     const isCod = pm.provider === "COD"
                     const isBkash = pm.provider === "BKASH"
+                    const isEnabled = pm.enabled
+                    const isSelectable = isEnabled && (isCod || isBkash)
                     return (
                       <div
                         key={pm.provider}
                         className={`flex items-start gap-4 rounded-xl border p-4 transition-all ${
                           paymentMethod === pm.provider.toLowerCase()
                             ? "border-primary bg-primary/5"
-                            : "hover:border-muted-foreground/30"
+                            : isSelectable
+                              ? "border-border/50 hover:border-muted-foreground/30"
+                              : "border-border/30 opacity-50 cursor-not-allowed bg-muted/20"
                         }`}
+                        onClick={() => {
+                          if (isSelectable) {
+                            setPaymentMethod(pm.provider.toLowerCase())
+                          }
+                        }}
                       >
                         <RadioGroupItem
                           value={pm.provider.toLowerCase()}
                           id={`lp-${pm.provider}`}
+                          disabled={!isSelectable}
                         />
                         <div className="flex-1 min-w-0">
                           <Label
                             htmlFor={`lp-${pm.provider}`}
-                            className="font-medium text-sm cursor-pointer"
+                            className={`font-medium text-sm ${isSelectable ? "cursor-pointer" : "cursor-not-allowed"}`}
                           >
                             {pm.displayName}
-                            {isOnline && !isBkash && (
+                            {!isSelectable && pm.enabled && (
                               <span className="ml-2 text-xs text-muted-foreground italic">
                                 — Coming soon
                               </span>
                             )}
-                            {isBkash && pm.enabled && (
+                            {isBkash && isEnabled && (
                               <span className="ml-2 text-xs text-green-600 font-medium">
                                 — Pay now
                               </span>
                             )}
                           </Label>
-                          {pm.instructions && (
+                          {pm.instructions && isSelectable && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {pm.instructions}
                             </p>
                           )}
-                          {isCod && pm.supportsCodDeliveryCharge && (
+                          {isCod && pm.supportsCodDeliveryCharge && isSelectable && (
                             <p className="text-xs text-amber-600 mt-1">
                               Delivery charge prepayment will be required when online payment is activated.
                             </p>
@@ -1275,11 +1324,11 @@ export function LandingPageClient({ product, slug }: LandingPageClientProps) {
                 <div className="space-y-1 pt-1">
                   <div className="flex justify-between text-sm text-primary font-medium">
                     <span>Pay Now</span>
-                    <span>—</span>
+                    <span>{computedPayment.payNow > 0 ? `৳${computedPayment.payNow.toLocaleString()}` : "—"}</span>
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Due on Delivery</span>
-                    <span>—</span>
+                    <span>{computedPayment.dueAmount > 0 ? `৳${computedPayment.dueAmount.toLocaleString()}` : "—"}</span>
                   </div>
                 </div>
               )}

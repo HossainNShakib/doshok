@@ -23,6 +23,7 @@ import { User, LogIn, MapPin, Home, Briefcase, Users } from "lucide-react"
 import { getDivisions, getDistrictsByDivision, getUpazilasByDistrict } from "@/lib/bangladesh-address"
 import { AddressCombobox } from "@/components/store/address-combobox"
 import { normalizePhoneToE164, isValidBdPhone } from "@/lib/checkout/phone"
+import { calculatePaymentAmounts, type PaymentRuleType } from "@/lib/checkout/payment-amount-client"
 import { FirebaseOtpPanel } from "@/components/store/firebase-otp-panel"
 
 type PaymentMethodSetting = {
@@ -42,9 +43,11 @@ type CheckoutSettings = {
   otpTtlSeconds: number
   checkoutTokenTtlSeconds: number
   otpProvider: "firebase" | "mock"
+  defaultPaymentRule: string
+  defaultPaymentRuleValue: number | null
 }
 
-const ONLINE_PROVIDERS = ["BKASH", "NAGAD", "ROCKET", "UPAY", "SSLCOMMERZ", "AAMARPAY"]
+const ONLINE_PROVIDERS = ["BKASH"]
 
 const STEPS = [
   { index: 0, label: "Contact", description: "Who & where to reach" },
@@ -408,6 +411,12 @@ export function CheckoutForm() {
   const displayDeliveryFee = finalDeliveryFeeDisplay || deliveryFee
   const displayProductDiscount = productDiscount || couponDiscount
   const displayTotal = grandTotal || (subtotal + deliveryFee - couponDiscount)
+
+  const effectiveGrandTotal = displayTotal
+  const effectiveDeliveryFee = finalDeliveryFeeDisplay || deliveryFee
+  const effectivePayRule: PaymentRuleType = (checkoutSettings?.defaultPaymentRule || "cod_only") as PaymentRuleType
+  const effectivePayValue = checkoutSettings?.defaultPaymentRuleValue ?? null
+  const computedPayment = calculatePaymentAmounts(effectiveGrandTotal, effectiveDeliveryFee, effectivePayRule, effectivePayValue)
 
   async function validateCoupon(code: string) {
     if (!code.trim()) return
@@ -1247,8 +1256,11 @@ export function CheckoutForm() {
                     <RadioGroup
                       value={paymentMethod}
                       onValueChange={(v) => {
-                        setPaymentMethod(v)
-                        updateField("selectedPaymentMethod", v)
+                        const target = paymentMethods.find((p) => p.provider.toLowerCase() === v)
+                        if (target && target.enabled && (target.provider === "COD" || target.provider === "BKASH")) {
+                          setPaymentMethod(v)
+                          updateField("selectedPaymentMethod", v)
+                        }
                       }}
                       className="space-y-3"
                     >
@@ -1257,7 +1269,7 @@ export function CheckoutForm() {
                         const isEnabled = pm.enabled
                         const isCod = pm.provider === "COD"
                         const isBkash = pm.provider === "BKASH"
-                        const isSelectable = isEnabled && !isOnline || (isOnline && isBkash && isEnabled)
+                        const isSelectable = isEnabled && (isCod || isBkash)
 
                         return (
                           <div
@@ -1498,11 +1510,11 @@ export function CheckoutForm() {
                     <>
                       <div className="flex justify-between text-sm text-primary font-medium">
                         <span>Pay Now</span>
-                        <span>—</span>
+                        <span>{computedPayment.payNow > 0 ? `৳${computedPayment.payNow.toLocaleString()}` : "—"}</span>
                       </div>
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Due on Delivery</span>
-                        <span>—</span>
+                        <span>{computedPayment.dueAmount > 0 ? `৳${computedPayment.dueAmount.toLocaleString()}` : "—"}</span>
                       </div>
                     </>
                   )}

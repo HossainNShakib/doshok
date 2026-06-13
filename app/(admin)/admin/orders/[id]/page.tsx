@@ -56,6 +56,16 @@ export default async function AdminOrderDetailPage({
           </div>
         </AdminSectionCard>
 
+        {order.notes && (
+          <div className="lg:col-span-2">
+            <AdminSectionCard title="Order Note" description="Customer note left during checkout.">
+              <div className="rounded-lg bg-amber-50/60 p-3">
+                <p className="text-xs text-amber-800">{order.notes}</p>
+              </div>
+            </AdminSectionCard>
+          </div>
+        )}
+
         <AdminSectionCard title="Delivery Address" description="Where the order will be delivered.">
           {order.address ? (
             <div className="space-y-2 text-xs">

@@ -114,7 +114,7 @@ export function FirebaseOtpPanel({
 
       const confirmationResult = await sendFirebasePhoneOtp(
         e164Phone,
-        `firebase-recaptcha-${Date.now()}`
+        "firebase-recaptcha-container"
       )
       confirmationResultRef.current = confirmationResult
       setState("sent")

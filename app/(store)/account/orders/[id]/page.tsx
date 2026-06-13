@@ -30,6 +30,7 @@ type Order = {
   bkashTrxId: string | null
   paymentVerifiedAt: string | null
   createdAt: string
+  notes: string | null
   items: {
     id: string
     productId: string
@@ -368,6 +369,20 @@ export default function AccountOrderDetailPage() {
               <p>{order.address.fullAddress}</p>
               <p className="text-muted-foreground">
                 {order.address.thana}, {order.address.district}, {order.address.division}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        {order.notes && (
+          <Card className="border-border/50 rounded-2xl shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <CreditCard className="h-4 w-4" /> Order Note
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                {order.notes}
               </p>
             </CardContent>
           </Card>
