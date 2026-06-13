@@ -132,6 +132,8 @@ model Product {
   landingSubheadline String?
   landingCopy        String?
   landingHeroImage   String?
+  paymentRuleOverride     String?
+  paymentRuleValueOverride Int?
   material           String?
   careInstructions   String?
   seoTitle           String?
@@ -145,6 +147,30 @@ model Product {
 
   relatedProducts    ProductRelation[] @relation("ProductRelations")
   targetRelations    ProductRelation[] @relation("ProductTargets")
+  landingPageSetting LandingPageSetting?
+}
+
+model LandingPageSetting {
+  id                          String   @id @default(cuid())
+  productId                   String   @unique
+  product                     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  paymentOverrideEnabled      Boolean  @default(false)
+  paymentRuleOverride         String?
+  paymentRuleValueOverride    Int?
+  otpOverrideEnabled          Boolean  @default(false)
+  otpOverride                 Boolean?
+  couponOverrideEnabled       Boolean  @default(false)
+  autoCouponCode              String?
+  deliveryOverrideEnabled     Boolean  @default(false)
+  deliveryFeeOverride         Int?
+  quantityLimit               Int?
+  customCta                   String?
+  customThankYouMessage       String?
+  customQuestionField         String?
+  urgencyCounterEnabled       Boolean  @default(false)
+  hideNormalNavigation        Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 }
 
 model ProductSpecification {
@@ -267,6 +293,21 @@ model Order {
   paymentExpiresAt   DateTime?
   paymentVerifiedAt  DateTime?
   stockRestoredAt     DateTime?
+  idempotencyKey      String?   @unique
+  productSubtotal     Int       @default(0)
+  productDiscount     Int       @default(0)
+  deliveryDiscount    Int       @default(0)
+  discountedProductTotal Int   @default(0)
+  finalDeliveryFee    Int       @default(0)
+  payNow              Int       @default(0)
+  dueAmount           Int       @default(0)
+  paymentRule         String?
+  paymentRuleValue    Int?
+  paymentRuleSource   String?
+  otpVerified         Boolean   @default(false)
+  otpVerifiedAt       DateTime?
+  couponType          String?
+  reservationExpiresAt DateTime?
   refundedAt     DateTime?
   refundAmount   Int              @default(0)
   refundReason   String?
@@ -324,6 +365,7 @@ model Coupon {
   usedCount  Int      @default(0)
   expiresAt  DateTime?
   active     Boolean  @default(true)
+  scope      String   @default("product")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   usages     CouponUsage[]
@@ -351,6 +393,43 @@ model OtpVerification {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+model PhoneOtpVerification {
+  id                      String    @id @default(cuid())
+  phone                   String
+  provider                String    @default("manual")
+  status                  String    @default("pending")
+  attempts                Int       @default(0)
+  resendCount             Int       @default(0)
+  lastSentAt              DateTime?
+  verifiedAt              DateTime?
+  expiresAt               DateTime
+  checkoutToken           String?   @unique
+  checkoutTokenExpiresAt  DateTime?
+  checkoutTokenUsedAt     DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([phone, status])
+  @@index([expiresAt])
+  @@index([checkoutToken])
+}
+
+model CheckoutSetting {
+  id                        String   @id @default("checkout")
+  checkoutV2Enabled         Boolean  @default(false)
+  otpRequired               Boolean  @default(true)
+  otpTtlSeconds             Int      @default(300)
+  otpCooldownSeconds        Int      @default(30)
+  otpMaxResend              Int      @default(5)
+  checkoutTokenTtlSeconds   Int      @default(900)
+  defaultPaymentRule        String   @default("cod_only")
+  defaultPaymentRuleValue   Int?
+  onlineReservationHours    Int      @default(2)
+  codReservationHours       Int      @default(24)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 }
 
 model SiteSettings {
@@ -441,6 +520,7 @@ model OrderShipment {
   lastCourierUpdate   DateTime?
   lastCourierStatus   String?
   lastCourierPayload  String?
+  collectionAmount    Int       @default(0)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }
