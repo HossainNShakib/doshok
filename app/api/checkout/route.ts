@@ -14,6 +14,7 @@ import {
 } from "@/lib/bangladesh-address"
 import { getPhoneServerValue } from "@/lib/utils"
 import { applyScopedCoupon } from "@/lib/checkout/coupon-engine.service"
+import { resolvePaymentRule } from "@/lib/checkout/payment-rule.service"
 
 const ONLINE_PROVIDERS = ["bkash", "nagad", "rocket", "upay", "sslcommerz", "aamarpay"]
 const PAYMENT_EXPIRY_HOURS = 2
@@ -61,7 +62,20 @@ export async function POST(request: NextRequest) {
     const productIds = [...new Set(items.map((i) => i.productId))]
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, name: true, price: true },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        paymentRuleOverride: true,
+        paymentRuleValueOverride: true,
+        landingPageSetting: {
+          select: {
+            paymentOverrideEnabled: true,
+            paymentRuleOverride: true,
+            paymentRuleValueOverride: true,
+          },
+        },
+      },
     })
     const productMap = new Map(products.map((p) => [p.id, p]))
     const productPriceMap = new Map(products.map((p) => [p.id, p.price]))
@@ -131,6 +145,34 @@ export async function POST(request: NextRequest) {
 
     const total = discountedProductTotal + finalDeliveryFeeCalc
 
+    const checkoutSetting = await prisma.checkoutSetting.findUnique({ where: { id: "checkout" } })
+
+    const landingProduct = products.find(p => p.landingPageSetting?.paymentOverrideEnabled)
+    const overrideProduct = products.find(p => p.paymentRuleOverride)
+
+    const paymentResult = resolvePaymentRule({
+      grandTotal: total,
+      finalDeliveryFee: finalDeliveryFeeCalc,
+      discountedProductTotal,
+      landingOverride: landingProduct
+        ? {
+            enabled: true,
+            rule: landingProduct.landingPageSetting!.paymentRuleOverride,
+            value: landingProduct.landingPageSetting!.paymentRuleValueOverride,
+          }
+        : null,
+      productOverride: overrideProduct
+        ? {
+            rule: overrideProduct.paymentRuleOverride,
+            value: overrideProduct.paymentRuleValueOverride,
+          }
+        : null,
+      globalDefault: {
+        rule: checkoutSetting?.defaultPaymentRule ?? "cod_only",
+        value: checkoutSetting?.defaultPaymentRuleValue ?? null,
+      },
+    })
+
     const order = await prisma.$transaction(async (tx) => {
       for (const item of validatedItems) {
         if (item.variantId) {
@@ -178,6 +220,11 @@ export async function POST(request: NextRequest) {
           deliveryDiscount,
           discountedProductTotal,
           finalDeliveryFee: finalDeliveryFeeCalc,
+          payNow: paymentResult.payNow,
+          dueAmount: paymentResult.dueAmount,
+          paymentRule: paymentResult.paymentRule,
+          paymentRuleValue: paymentResult.paymentRuleValue,
+          paymentRuleSource: paymentResult.source,
           notes: notes || null,
           address: {
             create: {
