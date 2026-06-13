@@ -14,7 +14,7 @@ type ProductCardProps = {
     category?: { name: string; slug: string }
     variants: { stock: number }[]
     averageRating?: number | null
-    reviewCount?: number
+    reviewCount?: number | null
   }
 }
 

@@ -1,83 +1,115 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { ProductCard } from "@/components/store/product-card"
+import { ProductPagination } from "@/components/store/product-pagination"
 import { Search, Package, TrendingUp, Tag, Sparkles } from "lucide-react"
 
 const SUGGESTED_SEARCHES = ["T-Shirt", "Shirt", "Panjabi", "Saree", "Kurta", "Shoe"]
+const LIMIT = 24
+const MAX_RESULTS = 200
 
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  const { q } = await searchParams
+  const resolved = await searchParams
+  const { q } = resolved
+  const currentPage = Math.max(1, parseInt(resolved.page ?? "1", 10) || 1)
 
-  const products = q
-    ? await prisma.product.findMany({
-        where: {
-          status: "Active",
-          OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { slug: { contains: q, mode: "insensitive" } },
-            { description: { contains: q, mode: "insensitive" } },
-            { shortDescription: { contains: q, mode: "insensitive" } },
-            { seoKeywords: { contains: q, mode: "insensitive" } },
-            { category: { name: { contains: q, mode: "insensitive" } } },
-            { variants: { some: { sku: { contains: q, mode: "insensitive" } } } },
-          ],
-        },
-        include: { variants: true, category: true },
-        orderBy: { createdAt: "desc" },
-      })
-    : []
+  let rankedProducts: Array<{
+    id: string
+    name: string
+    slug: string
+    price: number
+    oldPrice: number | null
+    images: string[]
+    description: string | null
+    shortDescription: string | null
+    seoKeywords: string | null
+    averageRating: number | null
+    reviewCount: number | null
+    variants: { stock: number; sku: string | null }[]
+    category: { name: string; slug: string }
+  }> = []
+  let total = 0
 
-  const rankedProducts = q && products.length > 0
-    ? products.sort((a, b) => {
-        const qLower = q.toLowerCase()
-        const aName = a.name.toLowerCase()
-        const bName = b.name.toLowerCase()
-        const aHasName = aName.includes(qLower)
-        const bHasName = bName.includes(qLower)
-        if (aHasName && !bHasName) return -1
-        if (bHasName && !aHasName) return 1
-        if (aHasName && bHasName) {
-          const aExact = aName === qLower
-          const bExact = bName === qLower
-          if (aExact && !bExact) return -1
-          if (bExact && !aExact) return 1
-          const aStarts = aName.startsWith(qLower)
-          const bStarts = bName.startsWith(qLower)
-          if (aStarts && !bStarts) return -1
-          if (bStarts && !aStarts) return 1
-        }
-        const aHasSku = a.variants.some((v) => v.sku?.toLowerCase().includes(qLower))
-        const bHasSku = b.variants.some((v) => v.sku?.toLowerCase().includes(qLower))
-        if (aHasSku && !bHasSku) return -1
-        if (bHasSku && !aHasSku) return 1
-        const aHasCat = a.category.name.toLowerCase().includes(qLower)
-        const bHasCat = b.category.name.toLowerCase().includes(qLower)
-        if (aHasCat && !bHasCat) return -1
-        if (bHasCat && !aHasCat) return 1
-        const aHasShortDesc = (a.shortDescription ?? "").toLowerCase().includes(qLower)
-        const bHasShortDesc = (b.shortDescription ?? "").toLowerCase().includes(qLower)
-        if (aHasShortDesc && !bHasShortDesc) return 1
-        if (bHasShortDesc && !aHasShortDesc) return -1
-        const aHasSeoKw = (a.seoKeywords ?? "").toLowerCase().includes(qLower)
-        const bHasSeoKw = (b.seoKeywords ?? "").toLowerCase().includes(qLower)
-        if (aHasSeoKw && !bHasSeoKw) return 1
-        if (bHasSeoKw && !aHasSeoKw) return -1
-        const aHasDesc = (a.description ?? "").toLowerCase().includes(qLower)
-        const bHasDesc = (b.description ?? "").toLowerCase().includes(qLower)
-        if (aHasDesc && !bHasDesc) return 1
-        if (bHasDesc && !aHasDesc) return -1
-        return 0
-      })
-    : []
+  if (q) {
+    const products = await prisma.product.findMany({
+      where: {
+        status: "Active",
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { slug: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+          { shortDescription: { contains: q, mode: "insensitive" } },
+          { seoKeywords: { contains: q, mode: "insensitive" } },
+          { category: { name: { contains: q, mode: "insensitive" } } },
+          { variants: { some: { sku: { contains: q, mode: "insensitive" } } } },
+        ],
+      },
+      include: { variants: true, category: true },
+      orderBy: { createdAt: "desc" },
+      take: MAX_RESULTS,
+    })
+
+    rankedProducts = products.sort((a, b) => {
+      const qLower = q.toLowerCase()
+      const aName = a.name.toLowerCase()
+      const bName = b.name.toLowerCase()
+      const aHasName = aName.includes(qLower)
+      const bHasName = bName.includes(qLower)
+      if (aHasName && !bHasName) return -1
+      if (bHasName && !aHasName) return 1
+      if (aHasName && bHasName) {
+        const aExact = aName === qLower
+        const bExact = bName === qLower
+        if (aExact && !bExact) return -1
+        if (bExact && !aExact) return 1
+        const aStarts = aName.startsWith(qLower)
+        const bStarts = bName.startsWith(qLower)
+        if (aStarts && !bStarts) return -1
+        if (bStarts && !aStarts) return 1
+      }
+      const aHasSku = a.variants.some((v) => v.sku?.toLowerCase().includes(qLower))
+      const bHasSku = b.variants.some((v) => v.sku?.toLowerCase().includes(qLower))
+      if (aHasSku && !bHasSku) return -1
+      if (bHasSku && !aHasSku) return 1
+      const aHasCat = a.category.name.toLowerCase().includes(qLower)
+      const bHasCat = b.category.name.toLowerCase().includes(qLower)
+      if (aHasCat && !bHasCat) return -1
+      if (bHasCat && !aHasCat) return 1
+      const aHasShortDesc = (a.shortDescription ?? "").toLowerCase().includes(qLower)
+      const bHasShortDesc = (b.shortDescription ?? "").toLowerCase().includes(qLower)
+      if (aHasShortDesc && !bHasShortDesc) return 1
+      if (bHasShortDesc && !aHasShortDesc) return -1
+      const aHasSeoKw = (a.seoKeywords ?? "").toLowerCase().includes(qLower)
+      const bHasSeoKw = (b.seoKeywords ?? "").toLowerCase().includes(qLower)
+      if (aHasSeoKw && !bHasSeoKw) return 1
+      if (bHasSeoKw && !aHasSeoKw) return -1
+      const aHasDesc = (a.description ?? "").toLowerCase().includes(qLower)
+      const bHasDesc = (b.description ?? "").toLowerCase().includes(qLower)
+      if (aHasDesc && !bHasDesc) return 1
+      if (bHasDesc && !aHasDesc) return -1
+      return 0
+    })
+
+    total = rankedProducts.length
+    const start = (currentPage - 1) * LIMIT
+    rankedProducts = rankedProducts.slice(start, start + LIMIT)
+  }
 
   const categories = await prisma.category.findMany({
     take: 6,
     orderBy: { name: "asc" },
   })
+
+  const totalPages = Math.ceil(total / LIMIT)
+
+  const searchParamsRecord: Record<string, string | undefined> = {
+    q: q || undefined,
+    page: resolved.page || undefined,
+  }
 
   return (
     <div className="container mx-auto container-px py-8 md:py-12">
@@ -87,7 +119,7 @@ export default async function SearchPage({
         </h1>
         {q && (
           <p className="text-muted-foreground text-sm mt-2">
-            {products.length} product{products.length !== 1 ? "s" : ""} found
+            {total} product{total !== 1 ? "s" : ""} found
           </p>
         )}
       </div>
@@ -131,7 +163,7 @@ export default async function SearchPage({
             </div>
           </div>
         </div>
-      ) : products.length === 0 ? (
+      ) : rankedProducts.length === 0 ? (
         <div className="text-center py-20">
           <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-6">
             <Package className="h-8 w-8 text-muted-foreground/60" />
@@ -170,11 +202,19 @@ export default async function SearchPage({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-          {rankedProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+            {rankedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          <ProductPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            basePath="/search"
+            searchParams={searchParamsRecord}
+          />
+        </>
       )}
     </div>
   )

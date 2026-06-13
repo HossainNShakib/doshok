@@ -1,14 +1,32 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { ProductCard } from "@/components/store/product-card"
+import { ProductSortSelect } from "@/components/store/product-sort-select"
+import { ProductPagination } from "@/components/store/product-pagination"
 import { Package } from "lucide-react"
+
+const LIMIT = 24
+
+type SortOption = "newest" | "price-low" | "price-high" | "rating"
+
+const SORT_MAP: Record<SortOption, Record<string, "asc" | "desc">> = {
+  newest: { createdAt: "desc" },
+  "price-low": { price: "asc" },
+  "price-high": { price: "desc" },
+  rating: { averageRating: "desc" },
+}
 
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; discount?: string; featured?: string }>
+  searchParams: Promise<{ category?: string; discount?: string; featured?: string; page?: string; sort?: string }>
 }) {
-  const { category, discount, featured } = await searchParams
+  const params = await searchParams
+  const { category, discount, featured } = params
+  const currentPage = Math.max(1, parseInt(params.page ?? "1", 10) || 1)
+  const sortParam = (params.sort as SortOption) || "newest"
+  const orderBy = SORT_MAP[sortParam] || SORT_MAP.newest
+
   const selectedCategory = category
     ? await prisma.category.findUnique({ where: { slug: category } })
     : null
@@ -17,20 +35,34 @@ export default async function ProductsPage({
   const showFeatured = featured === "true"
   const hasActiveFilter = !!(category || showDiscounts || showFeatured)
 
-  const products = await prisma.product.findMany({
-    where: {
-      status: "Active",
-      ...(category ? { categoryId: selectedCategory?.id ?? "__missing_category__" } : {}),
-      ...(showDiscounts ? { oldPrice: { not: null } } : {}),
-      ...(showFeatured ? { featured: true } : {}),
-    },
-    include: { variants: true, category: true },
-    orderBy: { createdAt: "desc" },
-  })
+  const where: Record<string, unknown> = { status: "Active" }
+  if (category && selectedCategory?.id) where.categoryId = selectedCategory.id
+  if (showDiscounts) where.oldPrice = { not: null }
+  if (showFeatured) where.featured = true
 
-  const allCategories = await prisma.category.findMany({
-    orderBy: { name: "asc" },
-  })
+  const [products, total, allCategories] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: { variants: true, category: true },
+      orderBy,
+      skip: (currentPage - 1) * LIMIT,
+      take: LIMIT,
+    }),
+    prisma.product.count({ where }),
+    prisma.category.findMany({
+      orderBy: { name: "asc" },
+    }),
+  ])
+
+  const totalPages = Math.ceil(total / LIMIT)
+
+  const searchParamsRecord: Record<string, string | undefined> = {
+    category: category || undefined,
+    discount: discount || undefined,
+    featured: featured || undefined,
+    sort: sortParam === "newest" ? undefined : sortParam,
+    page: params.page || undefined,
+  }
 
   return (
     <div className="container mx-auto container-px py-8 md:py-12">
@@ -41,8 +73,11 @@ export default async function ProductsPage({
             {selectedCategory?.name ?? (showDiscounts ? "Special Discount" : showFeatured ? "Doshok Picks" : "All Products")}
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
-            {products.length} product{products.length !== 1 ? "s" : ""}
+            {total} product{total !== 1 ? "s" : ""}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ProductSortSelect currentSort={sortParam} />
         </div>
       </div>
 
@@ -123,11 +158,19 @@ export default async function ProductsPage({
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          <ProductPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            basePath="/products"
+            searchParams={searchParamsRecord}
+          />
+        </>
       )}
     </div>
   )

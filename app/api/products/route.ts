@@ -4,6 +4,14 @@ import { productSchema } from "@/lib/validations"
 import { auth } from "@/lib/auth"
 import { NextRequest } from "next/server"
 
+type SortOption = "newest" | "price-low" | "price-high"
+
+const SORT_MAP: Record<SortOption, Record<string, "asc" | "desc">> = {
+  newest: { createdAt: "desc" },
+  "price-low": { price: "asc" },
+  "price-high": { price: "desc" },
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const pageType = searchParams.get("pageType")
@@ -11,10 +19,12 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")
   const selector = searchParams.get("selector") === "true"
   const ids = searchParams.get("ids")
+  const categoryId = searchParams.get("categoryId")
 
   const where: Record<string, unknown> = {}
   if (pageType) where.pageType = pageType
   if (status) where.status = status
+  if (categoryId) where.categoryId = categoryId
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" } },
@@ -28,25 +38,49 @@ export async function GET(request: NextRequest) {
     where.status = "Active"
   }
 
-  const products = await prisma.product.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: selector ? {
-      id: true,
-      name: true,
-      slug: true,
-      price: true,
-      oldPrice: true,
-      images: true,
-      status: true,
-      variants: { select: { stock: true } },
-    } : {
-      id: true,
-      name: true,
-      price: true,
+  if (selector) {
+    const products = await prisma.product.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+        oldPrice: true,
+        images: true,
+        status: true,
+        variants: { select: { stock: true } },
+      },
+    })
+    return success(products)
+  }
+
+  const sortParam = (searchParams.get("sort") as SortOption) || "newest"
+  const orderBy = SORT_MAP[sortParam] || SORT_MAP.newest
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1)
+  const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") ?? "24", 10) || 24))
+  const skip = (page - 1) * limit
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      orderBy,
+      skip,
+      take: limit,
+    }),
+    prisma.product.count({ where }),
+  ])
+
+  return success({
+    products,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
   })
-  return success(products)
 }
 
 export async function POST(request: NextRequest) {
