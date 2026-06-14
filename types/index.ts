@@ -177,6 +177,12 @@ export type UserAddress = {
   city: string
   zone: string
   postalCode: string | null
+  divisionId: string | null
+  districtId: string | null
+  upazilaId: string | null
+  divisionName: string | null
+  districtName: string | null
+  upazilaName: string | null
   isDefault: boolean
   createdAt: string
   updatedAt: string

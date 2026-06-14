@@ -90,6 +90,12 @@ export const addressSchema = z.object({
   city: z.string().min(1, "City is required").max(100),
   zone: z.enum(["chatto", "dhaka", "outside"]),
   postalCode: z.string().max(20).optional().or(z.literal("")),
+  divisionId: z.string().optional().nullable(),
+  districtId: z.string().optional().nullable(),
+  upazilaId: z.string().optional().nullable(),
+  divisionName: z.string().optional().nullable(),
+  districtName: z.string().optional().nullable(),
+  upazilaName: z.string().optional().nullable(),
   isDefault: z.boolean().default(false),
 })
 
@@ -193,7 +199,7 @@ export const otpSchema = z.object({
 })
 
 export const paymentProvider = z.enum([
-  "BKASH", "NAGAD", "ROCKET", "UPAY", "SSLCOMMERZ", "AAMARPAY", "COD",
+  "BKASH", "NAGAD", "COD",
 ])
 
 export const paymentMode = z.enum(["SANDBOX", "LIVE"])
@@ -216,43 +222,6 @@ export const nagadCredentialsSchema = z.object({
   baseUrl: z.string().optional().default(""),
   callbackUrl: z.string().optional().default(""),
 })
-
-export const rocketCredentialsSchema = z.object({
-  merchantId: z.string().optional().default(""),
-  merchantNumber: z.string().optional().default(""),
-  secretKey: z.string().optional().default(""),
-  baseUrl: z.string().optional().default(""),
-  callbackUrl: z.string().optional().default(""),
-})
-
-export const upayCredentialsSchema = z.object({
-  merchantId: z.string().optional().default(""),
-  merchantNumber: z.string().optional().default(""),
-  appKey: z.string().optional().default(""),
-  appSecret: z.string().optional().default(""),
-  baseUrl: z.string().optional().default(""),
-  callbackUrl: z.string().optional().default(""),
-})
-
-export const sslcommerzCredentialsSchema = z.object({
-  storeId: z.string().optional().default(""),
-  storePassword: z.string().optional().default(""),
-  baseUrl: z.string().optional().default(""),
-  successUrl: z.string().optional().default(""),
-  failUrl: z.string().optional().default(""),
-  cancelUrl: z.string().optional().default(""),
-  ipnUrl: z.string().optional().default(""),
-})
-
-export const aamarpayCredentialsSchema = z.object({
-  storeId: z.string().optional().default(""),
-  signatureKey: z.string().optional().default(""),
-  baseUrl: z.string().optional().default(""),
-  successUrl: z.string().optional().default(""),
-  failUrl: z.string().optional().default(""),
-  cancelUrl: z.string().optional().default(""),
-})
-
 export const codSettingsSchema = z.object({
   deliveryChargePrepayRequired: z.boolean().optional().default(false),
 })
@@ -260,10 +229,6 @@ export const codSettingsSchema = z.object({
 export const providerCredentialsMap: Record<string, z.ZodTypeAny> = {
   BKASH: bkashCredentialsSchema,
   NAGAD: nagadCredentialsSchema,
-  ROCKET: rocketCredentialsSchema,
-  UPAY: upayCredentialsSchema,
-  SSLCOMMERZ: sslcommerzCredentialsSchema,
-  AAMARPAY: aamarpayCredentialsSchema,
   COD: codSettingsSchema,
 }
 

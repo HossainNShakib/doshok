@@ -12,6 +12,7 @@ type FirebaseOtpPanelProps = {
   disabled?: boolean
   onVerified: (checkoutVerificationToken: string, normalizedPhone: string) => void
   onReset?: () => void
+  resetSignal?: number
   cooldownSeconds?: number
   tokenTtlSeconds?: number
 }
@@ -21,6 +22,7 @@ export function FirebaseOtpPanel({
   disabled = false,
   onVerified,
   onReset,
+  resetSignal = 0,
 }: FirebaseOtpPanelProps) {
   const [state, setState] = useState<
     "idle" | "sending" | "sent" | "verifying" | "verified" | "error"
@@ -55,22 +57,31 @@ export function FirebaseOtpPanel({
   }, [])
 
   useEffect(() => {
-    if (state === "verified") return
-    if (!phone) {
-      setState("idle")
-      setCode("")
-      setErrorMessage("")
-      return
-    }
-    if (onReset) onReset()
+    if (resetSignal === 0) return
     setState("idle")
     setCode("")
     setErrorMessage("")
+    confirmationResultRef.current = null
     if (cooldownRef.current) {
       clearInterval(cooldownRef.current)
       cooldownRef.current = null
     }
     setCooldownRemaining(0)
+  }, [resetSignal])
+
+  useEffect(() => {
+    if (!phone) {
+      setState("idle")
+      setCode("")
+      setErrorMessage("")
+      confirmationResultRef.current = null
+      return
+    }
+    if (state !== "verified" && phone) {
+      setState("idle")
+      setCode("")
+      setErrorMessage("")
+    }
   }, [phone])
 
   async function handleSendOtp() {

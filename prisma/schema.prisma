@@ -260,6 +260,12 @@ model UserAddress {
   city          String
   zone          String
   postalCode    String?
+  divisionId    String?
+  districtId    String?
+  upazilaId     String?
+  divisionName  String?
+  districtName  String?
+  upazilaName   String?
   isDefault     Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

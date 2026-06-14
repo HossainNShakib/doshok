@@ -57,7 +57,17 @@ const STEPS = [
 ]
 
 function getLocalFromSaved(e164: string): string {
-  return e164.replace(/\D/g, "").replace(/^880/, "")
+  const digits = e164.replace(/\D/g, "")
+  if (digits.length === 13 && digits.startsWith("880")) return digits.slice(3)
+  if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1)
+  return digits.slice(0, 10)
+}
+
+function normalizePhoneInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "")
+  if (digits.length === 13 && digits.startsWith("880")) return digits.slice(3, 13)
+  if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1, 11)
+  return digits.slice(0, 10)
 }
 
 export function CheckoutForm() {
@@ -135,6 +145,8 @@ export function CheckoutForm() {
   const [saveToAccount, setSaveToAccount] = useState(false)
   const [addressesLoading, setAddressesLoading] = useState(false)
 
+  const [calculatedPayNow, setCalculatedPayNow] = useState(0)
+  const [calculatedDueAmount, setCalculatedDueAmount] = useState(0)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const formRef = useRef<HTMLDivElement>(null)
 
@@ -152,7 +164,10 @@ export function CheckoutForm() {
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
   const [checkoutVerificationToken, setCheckoutVerificationToken] = useState<string | null>(null)
   const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null)
+  const [otpResetSignal, setOtpResetSignal] = useState(0)
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const profilePrefilledRef = useRef(false)
+  const addressPrefilledRef = useRef(false)
 
   const [couponScope, setCouponScope] = useState<string | null>(null)
   const [productDiscount, setProductDiscount] = useState(0)
@@ -164,6 +179,23 @@ export function CheckoutForm() {
   const isV2 = checkoutSettings?.checkoutV2Enabled ?? false
   const otpRequired = checkoutSettings?.otpRequired ?? true
   const otpProvider = checkoutSettings?.otpProvider ?? "mock"
+
+  const isPhoneVerified = otpState === "verified" && !!checkoutVerificationToken && !!verifiedPhone
+  const isPhoneLocked = isV2 && otpRequired && isPhoneVerified && draft.phone === verifiedPhone
+
+  function clearPhoneVerification() {
+    setOtpState("idle")
+    setOtpCode("")
+    setOtpError("")
+    setCheckoutVerificationToken(null)
+    setVerifiedPhone(null)
+    setOtpResetSignal((n) => n + 1)
+    if (cooldownRef.current) {
+      clearInterval(cooldownRef.current)
+      cooldownRef.current = null
+    }
+    setCooldownRemaining(0)
+  }
 
   useEffect(() => {
     const urlCoupon = searchParams.get("coupon")
@@ -212,17 +244,9 @@ export function CheckoutForm() {
 
   useEffect(() => {
     if (otpState === "verified" && verifiedPhone && draft.phone !== verifiedPhone) {
-      setOtpState("idle")
-      setOtpCode("")
-      setOtpError("")
-      setCheckoutVerificationToken(null)
-      setVerifiedPhone(null)
-      if (cooldownRef.current) {
-        clearInterval(cooldownRef.current)
-        cooldownRef.current = null
-      }
-      setCooldownRemaining(0)
+      clearPhoneVerification()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.phone, otpState, verifiedPhone])
 
   useEffect(() => {
@@ -301,39 +325,60 @@ export function CheckoutForm() {
 
   useEffect(() => {
     if (!isLoggedIn) return
+    if (profilePrefilledRef.current) return
+    profilePrefilledRef.current = true
     fetch("/api/account/profile")
       .then((r) => r.json())
       .then((d) => {
         if (!d.success || !d.data) return
         const profile = d.data as { firstName?: string; lastName?: string; email?: string; phone?: string | null }
-        const updates: Partial<typeof draft> = {}
-        if (profile.firstName || profile.lastName) {
-          const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ")
-          if (fullName && !draft.name) updates.name = fullName
-        }
-        if (profile.email && !draft.email) updates.email = profile.email
-        if (profile.phone && !draft.phone) updates.phone = getLocalFromSaved(profile.phone)
-        if (Object.keys(updates).length > 0) {
-          updateFields(updates)
-        }
+        setDraft((prev) => {
+          const updates: Partial<typeof draft> = {}
+          if ((profile.firstName || profile.lastName) && !prev.name) {
+            updates.name = [profile.firstName, profile.lastName].filter(Boolean).join(" ")
+          }
+          if (profile.email && !prev.email) updates.email = profile.email
+          if (profile.phone && !prev.phone) updates.phone = getLocalFromSaved(profile.phone)
+          if (Object.keys(updates).length === 0) return prev
+          return { ...prev, ...updates }
+        })
       })
       .catch(() => {})
-  }, [isLoggedIn, updateFields])
+  }, [isLoggedIn])
 
   useEffect(() => {
     if (!isLoggedIn) return
+    if (addressPrefilledRef.current) return
+    addressPrefilledRef.current = true
     setAddressesLoading(true)
     fetch("/api/account/addresses")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) {
-          const addrs = d.data as UserAddress[]
-          setSavedAddresses(addrs)
-          const defaultAddr = addrs.find((a: UserAddress) => a.isDefault)
-          if (defaultAddr && !draft.fullAddress) {
-            setSelectedAddressId(defaultAddr.id)
-            applyAddressToDraft(defaultAddr)
-          }
+        if (!d.success) return
+        const addrs = d.data as UserAddress[]
+        setSavedAddresses(addrs)
+        const defaultAddr = addrs.find((a: UserAddress) => a.isDefault)
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id)
+          const addrDivisionId = defaultAddr.divisionId || ""
+          const addrDistrictId = defaultAddr.districtId || ""
+          const addrUpazilaId = defaultAddr.upazilaId || ""
+          setDraft((prev) => ({
+            ...prev,
+            name: prev.name || defaultAddr.recipientName,
+            phone: prev.phone || getLocalFromSaved(defaultAddr.phone),
+            divisionId: addrDivisionId,
+            divisionName: prev.divisionName || defaultAddr.divisionName || defaultAddr.city,
+            districtId: addrDistrictId,
+            districtName: prev.districtName || defaultAddr.districtName || defaultAddr.city,
+            upazilaId: addrUpazilaId,
+            upazilaName: prev.upazilaName || defaultAddr.upazilaName || defaultAddr.city,
+            fullAddress: prev.fullAddress || (defaultAddr.addressLine1 + (defaultAddr.addressLine2 ? `, ${defaultAddr.addressLine2}` : "")),
+            selectedDeliveryZone: (defaultAddr.zone as DeliveryZone) || prev.selectedDeliveryZone,
+          }))
+          setDeliveryZone(defaultAddr.zone as DeliveryZone)
+          if (addrDivisionId) setDistricts(getDistrictsByDivision(addrDivisionId))
+          if (addrDistrictId) setUpazilas(getUpazilasByDistrict(addrDistrictId))
         }
       })
       .catch(() => {})
@@ -341,21 +386,24 @@ export function CheckoutForm() {
   }, [isLoggedIn])
 
   function applyAddressToDraft(addr: UserAddress) {
+    const addrDivisionId = addr.divisionId || ""
+    const addrDistrictId = addr.districtId || ""
+    const addrUpazilaId = addr.upazilaId || ""
     updateFields({
       name: addr.recipientName,
       phone: getLocalFromSaved(addr.phone),
-      divisionId: "",
-      divisionName: addr.city,
-      districtId: "",
-      districtName: addr.city,
-      upazilaId: "",
-      upazilaName: addr.city,
+      divisionId: addrDivisionId,
+      divisionName: addr.divisionName || addr.city,
+      districtId: addrDistrictId,
+      districtName: addr.districtName || addr.city,
+      upazilaId: addrUpazilaId,
+      upazilaName: addr.upazilaName || addr.city,
       fullAddress: addr.addressLine1 + (addr.addressLine2 ? `, ${addr.addressLine2}` : ""),
       selectedDeliveryZone: addr.zone as DeliveryZone,
     })
     setDeliveryZone(addr.zone as DeliveryZone)
-    setDistricts([])
-    setUpazilas([])
+    if (addrDivisionId) setDistricts(getDistrictsByDivision(addrDivisionId))
+    if (addrDistrictId) setUpazilas(getUpazilasByDistrict(addrDistrictId))
   }
 
   const scrollToTop = useCallback(() => {
@@ -407,6 +455,20 @@ export function CheckoutForm() {
     setValidationErrors([])
   }, [goBack, scrollToTop])
 
+  const goToStep = useCallback((target: number) => {
+    if (target < 0 || target > 3) return
+    if (target > step) {
+      const errors = validateCurrentStep()
+      if (errors.length > 0) {
+        setValidationErrors(errors)
+        return
+      }
+    }
+    setValidationErrors([])
+    setStep(target)
+    scrollToTop()
+  }, [step, validateCurrentStep, scrollToTop])
+
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
   const displayDeliveryFee = finalDeliveryFeeDisplay || deliveryFee
   const displayProductDiscount = productDiscount || couponDiscount
@@ -417,6 +479,25 @@ export function CheckoutForm() {
   const effectivePayRule: PaymentRuleType = (checkoutSettings?.defaultPaymentRule || "cod_only") as PaymentRuleType
   const effectivePayValue = checkoutSettings?.defaultPaymentRuleValue ?? null
   const computedPayment = calculatePaymentAmounts(effectiveGrandTotal, effectiveDeliveryFee, effectivePayRule, effectivePayValue)
+
+  const payNowForDisplay = isV2 ? calculatedPayNow : (computedPayment.payNow)
+  const dueAmountForDisplay = isV2 ? calculatedDueAmount : (computedPayment.dueAmount)
+  const isOnlinePaymentRequired = isV2 && payNowForDisplay > 0
+
+  useEffect(() => {
+    setCalculatedPayNow(computedPayment.payNow)
+    setCalculatedDueAmount(computedPayment.dueAmount)
+  }, [computedPayment.payNow, computedPayment.dueAmount])
+
+  useEffect(() => {
+    if (isOnlinePaymentRequired && paymentMethod === "cod") {
+      const bkash = paymentMethods.find((p) => p.provider === "BKASH" && p.enabled)
+      if (bkash) {
+        setPaymentMethod("bkash")
+        updateField("selectedPaymentMethod", "bkash")
+      }
+    }
+  }, [isOnlinePaymentRequired, paymentMethod, paymentMethods])
 
   async function validateCoupon(code: string) {
     if (!code.trim()) return
@@ -638,6 +719,12 @@ export function CheckoutForm() {
               city: draft.districtName || draft.divisionName,
               zone: deliveryZone,
               postalCode: "",
+              divisionId: draft.divisionId || null,
+              districtId: draft.districtId || null,
+              upazilaId: draft.upazilaId || null,
+              divisionName: draft.divisionName || null,
+              districtName: draft.districtName || null,
+              upazilaName: draft.upazilaName || null,
               isDefault: savedAddresses.length === 0,
             }),
           }).catch(() => {})
@@ -724,37 +811,58 @@ export function CheckoutForm() {
 
       <div className="mb-8">
         <div className="flex items-center justify-between max-w-3xl">
-          {STEPS.map((s, i) => (
-            <div key={s.index} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                    i < step
-                      ? "bg-primary text-primary-foreground"
-                      : i === step
-                        ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {i < step ? <CheckCircle className="h-4 w-4" /> : s.index + 1}
+          {STEPS.map((s, i) => {
+            const isCompleted = i < step
+            const isCurrent = i === step
+            const isClickable = isCompleted || isCurrent
+            return (
+              <div key={s.index} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  {isClickable ? (
+                    <button
+                      type="button"
+                      onClick={() => goToStep(s.index)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                        isCompleted
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                          : "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                      }`}
+                      aria-label={`Go to ${s.label} step`}
+                    >
+                      {isCompleted ? <CheckCircle className="h-4 w-4" /> : s.index + 1}
+                    </button>
+                  ) : (
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors bg-muted text-muted-foreground"
+                    >
+                      {s.index + 1}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => isClickable && goToStep(s.index)}
+                    disabled={!isClickable}
+                    className={`text-[10px] mt-1 font-medium hidden sm:block transition-colors ${
+                      isCurrent
+                        ? "text-foreground"
+                        : isCompleted
+                          ? "text-muted-foreground hover:text-foreground cursor-pointer"
+                          : "text-muted-foreground/60 cursor-not-allowed"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
                 </div>
-                <span
-                  className={`text-[10px] mt-1 font-medium hidden sm:block ${
-                    i === step ? "text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {s.label}
-                </span>
+                {i < STEPS.length - 1 && (
+                  <div
+                    className={`h-px w-8 md:w-16 mx-2 ${
+                      i < step ? "bg-primary" : "bg-muted-foreground/20"
+                    }`}
+                  />
+                )}
               </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={`h-px w-8 md:w-16 mx-2 ${
-                    i < step ? "bg-primary" : "bg-muted-foreground/20"
-                  }`}
-                />
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -811,8 +919,25 @@ export function CheckoutForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <div className="flex items-center gap-0 rounded-xl border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 has-[:focus]:ring-primary">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      {isPhoneLocked && (
+                        <button
+                          type="button"
+                          onClick={clearPhoneVerification}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Change phone
+                        </button>
+                      )}
+                    </div>
+                    <div
+                      className={`flex items-center gap-0 rounded-xl border bg-background overflow-hidden ${
+                        isPhoneLocked
+                          ? "opacity-70 cursor-not-allowed"
+                          : "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 has-[:focus]:ring-primary"
+                      }`}
+                    >
                       <span className="px-4 py-2.5 text-sm font-medium bg-muted/50 border-r border-border text-muted-foreground select-none shrink-0">
                         +880
                       </span>
@@ -822,23 +947,43 @@ export function CheckoutForm() {
                         inputMode="tel"
                         value={draft.phone}
                         onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, "").slice(0, 10)
+                          if (isPhoneLocked) return
+                          const raw = normalizePhoneInput(e.target.value)
                           updateField("phone", raw)
                         }}
-                        placeholder="1XXXXXXXXX"
-                        className="h-11 rounded-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        onPaste={(e) => {
+                          if (isPhoneLocked) {
+                            e.preventDefault()
+                            return
+                          }
+                          const pasted = e.clipboardData.getData("text")
+                          if (!pasted) return
+                          e.preventDefault()
+                          updateField("phone", normalizePhoneInput(pasted))
+                        }}
+                        readOnly={isPhoneLocked}
+                        disabled={isPhoneLocked}
+                        placeholder={isPhoneLocked ? "" : "1XXXXXXXXX"}
+                        aria-readonly={isPhoneLocked}
+                        className="h-11 rounded-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-100 disabled:cursor-not-allowed"
                       />
                     </div>
+                    {isPhoneLocked && (
+                      <p className="text-[11px] text-emerald-600 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" /> Phone verified — locked
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* OTP Panel */}
-                {isV2 && otpRequired && (
+                {isV2 && otpRequired && !isPhoneLocked && (
                   <div className="border-t border-border/50 pt-5">
                     {otpProvider === "firebase" ? (
                       <FirebaseOtpPanel
                         phone={draft.phone}
                         disabled={loading}
+                        resetSignal={otpResetSignal}
                         onVerified={(token) => {
                           setOtpState("verified")
                           setCheckoutVerificationToken(token)
@@ -852,113 +997,84 @@ export function CheckoutForm() {
                           setCooldownRemaining(0)
                           toast.success("Phone verified successfully")
                         }}
-                        onReset={() => {
-                          setOtpState("idle")
-                          setCheckoutVerificationToken(null)
-                          setVerifiedPhone(null)
-                        }}
+                        onReset={clearPhoneVerification}
                       />
                     ) : (
-                      <>
-                        {otpState === "verified" ? (
-                          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-5 py-4">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                              <div>
-                                <p className="text-sm font-medium text-green-700">Phone Verified</p>
-                                <p className="text-xs text-green-600">{normalizePhoneToE164(draft.phone)}</p>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOtpState("idle")
-                                setCheckoutVerificationToken(null)
-                                setVerifiedPhone(null)
-                              }}
-                              className="text-xs text-red-500 hover:text-red-700 font-medium"
-                            >
-                              Change
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                              <Smartphone className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-medium">Phone Verification</span>
-                            </div>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium">Phone Verification</span>
+                        </div>
 
-                            {otpState === "idle" && (
+                        {otpState === "idle" && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleSendOtp}
+                            disabled={!draft.phone.trim() || !isValidBdPhone(draft.phone.trim())}
+                            className="h-11 rounded-xl"
+                          >
+                            <Smartphone className="h-4 w-4 mr-2" />
+                            Send OTP
+                          </Button>
+                        )}
+
+                        {otpState === "sending" && (
+                          <p className="text-sm text-muted-foreground animate-pulse">Sending OTP...</p>
+                        )}
+
+                        {(otpState === "sent" || otpState === "verifying" || otpState === "error") && (
+                          <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              Enter the 6-digit code sent to {normalizePhoneToE164(draft.phone)}
+                            </p>
+                            <div className="flex gap-2">
+                              <Input
+                                value={otpCode}
+                                onChange={(e) => {
+                                  setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                                  setOtpError("")
+                                }}
+                                placeholder="000000"
+                                className="h-11 rounded-xl w-40 text-center text-lg tracking-widest font-mono"
+                                disabled={otpState === "verifying"}
+                                maxLength={6}
+                              />
                               <Button
                                 type="button"
-                                variant="outline"
-                                onClick={handleSendOtp}
-                                disabled={!draft.phone.trim() || !isValidBdPhone(draft.phone.trim())}
+                                onClick={handleVerifyOtp}
+                                disabled={otpState === "verifying" || otpCode.length < 6}
                                 className="h-11 rounded-xl"
                               >
-                                <Smartphone className="h-4 w-4 mr-2" />
-                                Send OTP
+                                {otpState === "verifying" ? "Verifying..." : "Verify"}
                               </Button>
+                            </div>
+
+                            {otpError && (
+                              <p className="text-sm text-destructive">{otpError}</p>
                             )}
 
-                            {otpState === "sending" && (
-                              <p className="text-sm text-muted-foreground animate-pulse">Sending OTP...</p>
-                            )}
-
-                            {(otpState === "sent" || otpState === "verifying" || otpState === "error") && (
-                              <div className="space-y-3">
-                                <p className="text-xs text-muted-foreground">
-                                  Enter the 6-digit code sent to {normalizePhoneToE164(draft.phone)}
-                                </p>
-                                <div className="flex gap-2">
-                                  <Input
-                                    value={otpCode}
-                                    onChange={(e) => {
-                                      setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                                      setOtpError("")
-                                    }}
-                                    placeholder="000000"
-                                    className="h-11 rounded-xl w-40 text-center text-lg tracking-widest font-mono"
-                                    disabled={otpState === "verifying"}
-                                    maxLength={6}
-                                  />
-                                  <Button
-                                    type="button"
-                                    onClick={handleVerifyOtp}
-                                    disabled={otpState === "verifying" || otpCode.length < 6}
-                                    className="h-11 rounded-xl"
-                                  >
-                                    {otpState === "verifying" ? "Verifying..." : "Verify"}
-                                  </Button>
-                                </div>
-
-                                {otpError && (
-                                  <p className="text-sm text-destructive">{otpError}</p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleSendOtp}
+                                disabled={cooldownRemaining > 0 || otpState === "verifying"}
+                                className="text-xs h-8"
+                              >
+                                Resend OTP
+                                {cooldownRemaining > 0 && (
+                                  <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {cooldownRemaining}s
+                                  </span>
                                 )}
-
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleSendOtp}
-                                    disabled={cooldownRemaining > 0 || otpState === "verifying"}
-                                    className="text-xs h-8"
-                                  >
-                                    Resend OTP
-                                    {cooldownRemaining > 0 && (
-                                      <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground">
-                                        <Clock className="h-3 w-3" />
-                                        {cooldownRemaining}s
-                                      </span>
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
+                              </Button>
+                            </div>
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1269,7 +1385,8 @@ export function CheckoutForm() {
                         const isEnabled = pm.enabled
                         const isCod = pm.provider === "COD"
                         const isBkash = pm.provider === "BKASH"
-                        const isSelectable = isEnabled && (isCod || isBkash)
+                        const isCodBlocked = isCod && isOnlinePaymentRequired
+                        const isSelectable = isEnabled && !isCodBlocked && (isCod || isBkash)
 
                         return (
                           <div
@@ -1300,14 +1417,22 @@ export function CheckoutForm() {
                               >
                                 {pm.displayName}
                               </Label>
-                              {isCod && isEnabled && (
+                              {isCod && (
                                 <div className="mt-1.5 space-y-1">
-                                  <p className="text-xs text-muted-foreground">
-                                    {isV2 ? "Pay the amount due when your order is delivered." : `Pay the full amount (৳${displayTotal.toLocaleString()}) when your order is delivered.`}
-                                  </p>
-                                  <p className="text-xs text-amber-600">
-                                    No advance payment required.
-                                  </p>
+                                  {isCodBlocked ? (
+                                    <p className="text-xs text-amber-600">
+                                      This order requires advance payment. COD is not available.
+                                    </p>
+                                  ) : (
+                                    <>
+                                      <p className="text-xs text-muted-foreground">
+                                        {isV2 ? "Pay the amount due when your order is delivered." : `Pay the full amount (৳${displayTotal.toLocaleString()}) when your order is delivered.`}
+                                      </p>
+                                      <p className="text-xs text-amber-600">
+                                        No advance payment required.
+                                      </p>
+                                    </>
+                                  )}
                                 </div>
                               )}
                               {isBkash && isEnabled && (
@@ -1316,8 +1441,13 @@ export function CheckoutForm() {
                                     Pay now with bKash to confirm your order instantly.
                                   </p>
                                   <p className="text-xs font-medium text-primary">
-                                    Amount to pay: ৳{displayTotal.toLocaleString()}
+                                    Amount to pay: ৳{(isV2 ? payNowForDisplay : displayTotal).toLocaleString()}
                                   </p>
+                                  {isV2 && payNowForDisplay < displayTotal && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Due on delivery: ৳{dueAmountForDisplay.toLocaleString()}
+                                    </p>
+                                  )}
                                 </div>
                               )}
                               {pm.instructions && isEnabled && (
@@ -1361,7 +1491,16 @@ export function CheckoutForm() {
 
                   <div className="space-y-4 divide-y divide-border/50">
                     <div className="space-y-2 pb-4">
-                      <h3 className="text-sm font-medium text-muted-foreground">Contact</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-muted-foreground">Contact</h3>
+                        <button
+                          type="button"
+                          onClick={() => goToStep(0)}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >
+                          Edit
+                        </button>
+                      </div>
                       <p className="text-sm">{draft.name}</p>
                       <p className="text-sm">{draft.email}</p>
                       <p className="text-sm">{getPhoneDisplayE164(draft.phone)}</p>
@@ -1372,7 +1511,16 @@ export function CheckoutForm() {
                       )}
                     </div>
                     <div className="space-y-2 pb-4 pt-4">
-                      <h3 className="text-sm font-medium text-muted-foreground">Delivery</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-medium text-muted-foreground">Delivery</h3>
+                        <button
+                          type="button"
+                          onClick={() => goToStep(1)}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >
+                          Edit
+                        </button>
+                      </div>
                       <p className="text-sm">{draft.fullAddress}</p>
                       <p className="text-sm">{draft.upazilaName}, {draft.districtName}, Bangladesh</p>
                       <p className="text-sm">{DELIVERY_ZONE_NAMES[deliveryZone as keyof typeof DELIVERY_ZONE_NAMES] || deliveryZone}</p>
@@ -1402,14 +1550,25 @@ export function CheckoutForm() {
                 </CardContent>
               </Card>
 
-              <Button
-                size="lg"
-                className="w-full h-12 md:h-14 text-base rounded-xl"
-                onClick={handlePlaceOrder}
-                disabled={loading}
-              >
-                {loading ? "Placing Order..." : `Place Order — ৳${displayTotal.toLocaleString()}`}
-              </Button>
+              <div className="flex flex-col gap-3">
+                <Button
+                  size="lg"
+                  className="w-full h-12 md:h-14 text-base rounded-xl"
+                  onClick={handlePlaceOrder}
+                  disabled={loading}
+                >
+                  {loading ? "Placing Order..." : `Place Order — ৳${displayTotal.toLocaleString()}`}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleBack}
+                  disabled={loading}
+                  className="gap-1.5"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Back to Offer &amp; Payment
+                </Button>
+              </div>
             </div>
           )}
 

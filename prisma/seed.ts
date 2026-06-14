@@ -90,10 +90,6 @@ async function main() {
     { provider: "COD", displayName: "Cash on Delivery", enabled: true, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: false, supportsCodDeliveryCharge: false, instructions: "Pay when you receive your order." },
     { provider: "BKASH", displayName: "bKash", enabled: false, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: true, supportsCodDeliveryCharge: false, instructions: "Pay securely with bKash." },
     { provider: "NAGAD", displayName: "Nagad", enabled: false, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: true, supportsCodDeliveryCharge: false, instructions: "Pay securely with Nagad." },
-    { provider: "ROCKET", displayName: "Rocket", enabled: false, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: true, supportsCodDeliveryCharge: false, instructions: "Pay securely with Rocket." },
-    { provider: "UPAY", displayName: "Upay", enabled: false, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: true, supportsCodDeliveryCharge: false, instructions: "Pay securely with Upay." },
-    { provider: "SSLCOMMERZ", displayName: "SSLCommerz", enabled: false, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: true, supportsCodDeliveryCharge: false, instructions: "Pay via SSLCommerz." },
-    { provider: "AAMARPAY", displayName: "aamarPay", enabled: false, mode: "SANDBOX", supportsFullPayment: true, supportsPartialPayment: true, supportsCodDeliveryCharge: false, instructions: "Pay via aamarPay." },
   ]
 
   for (const pm of paymentMethods) {

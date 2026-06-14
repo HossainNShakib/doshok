@@ -64,7 +64,10 @@ export default function CMSMenusPage() {
       const res = await fetch("/api/menus")
       const data = await res.json()
       if (data.success) {
-        setMenuItems(data.data)
+        const trees: MenuItem[] = Array.isArray(data.data)
+          ? data.data
+          : Object.values(data.data ?? {}).flat()
+        setMenuItems(trees)
       }
     } catch {
       toast.error("Failed to load menu items")

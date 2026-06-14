@@ -1,5 +1,47 @@
 export type PaymentRuleType = "cod_only" | "full" | "partial_percent" | "fixed_advance" | "delivery_charge_only"
 
+export const PAYMENT_RULE_VALUES: readonly PaymentRuleType[] = [
+  "cod_only",
+  "full",
+  "partial_percent",
+  "fixed_advance",
+  "delivery_charge_only",
+]
+
+export const PAYMENT_RULE_LABELS: Record<PaymentRuleType, string> = {
+  cod_only: "Cash on Delivery Only",
+  full: "Full Payment",
+  partial_percent: "Partial (% of total)",
+  fixed_advance: "Fixed Advance (BDT)",
+  delivery_charge_only: "Delivery Charge Only",
+}
+
+export const PAYMENT_RULE_DESCRIPTIONS: Record<PaymentRuleType, string> = {
+  cod_only: "No advance payment required.",
+  full: "Customer must pay the full amount online.",
+  partial_percent: "Customer pays a percentage of the total online.",
+  fixed_advance: "Customer pays a fixed amount online.",
+  delivery_charge_only: "Customer pays only the delivery fee online.",
+}
+
+export const PAYMENT_RULE_SHORT_LABELS: Record<PaymentRuleType, string> = {
+  cod_only: "COD Only",
+  full: "Full",
+  partial_percent: "Partial Percent",
+  fixed_advance: "Fixed Advance",
+  delivery_charge_only: "Delivery Charge Only",
+}
+
+export function getPaymentRuleLabel(value: string | null | undefined): string {
+  if (!value) return "—"
+  return PAYMENT_RULE_LABELS[value as PaymentRuleType] ?? value
+}
+
+export function getPaymentRuleShortLabel(value: string | null | undefined): string {
+  if (!value) return "—"
+  return PAYMENT_RULE_SHORT_LABELS[value as PaymentRuleType] ?? value
+}
+
 export type PaymentRuleSource = "landing" | "product" | "global"
 
 export type PaymentRuleInput = {

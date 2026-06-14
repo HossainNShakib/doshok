@@ -16,6 +16,11 @@ import { AlertTriangle, Archive, ExternalLink, EyeOff, Layers, Plus, Ruler, Save
 import { LOW_STOCK_THRESHOLD } from "@/types"
 import { slugifyName } from "@/lib/slug"
 import { ProductRelationSelector } from "@/components/admin/product-relation-selector"
+import {
+  PAYMENT_RULE_LABELS,
+  PAYMENT_RULE_VALUES,
+  type PaymentRuleType,
+} from "@/lib/checkout/payment-rule.service"
 
 type VariantInput = {
   size: string
@@ -566,13 +571,17 @@ export default function EditProductPage() {
               <div className="space-y-1.5">
                 <Label>Payment Rule Override</Label>
                 <Select value={paymentRuleOverride} onValueChange={(value) => value != null && setPaymentRuleOverride(value)}>
-                  <SelectTrigger><SelectValue placeholder="Default" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Default">
+                      {(value: string | null) => value ? (PAYMENT_RULE_LABELS[value as PaymentRuleType] ?? value) : "Default"}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cod_only">COD Only</SelectItem>
-                    <SelectItem value="full">Full</SelectItem>
-                    <SelectItem value="partial_percent">Partial Percent</SelectItem>
-                    <SelectItem value="fixed_advance">Fixed Advance</SelectItem>
-                    <SelectItem value="delivery_charge_only">Delivery Charge Only</SelectItem>
+                    {PAYMENT_RULE_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {PAYMENT_RULE_LABELS[value]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -628,13 +637,17 @@ export default function EditProductPage() {
                     <div className="space-y-1.5">
                       <Label>Payment Rule</Label>
                       <Select value={lpPaymentRuleOverride} onValueChange={(value) => value != null && setLpPaymentRuleOverride(value)}>
-                        <SelectTrigger><SelectValue placeholder="Select rule" /></SelectTrigger>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select rule">
+                            {(value: string | null) => value ? (PAYMENT_RULE_LABELS[value as PaymentRuleType] ?? value) : "Select rule"}
+                          </SelectValue>
+                        </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cod_only">COD Only</SelectItem>
-                          <SelectItem value="full">Full</SelectItem>
-                          <SelectItem value="partial_percent">Partial Percent</SelectItem>
-                          <SelectItem value="fixed_advance">Fixed Advance</SelectItem>
-                          <SelectItem value="delivery_charge_only">Delivery Charge Only</SelectItem>
+                          {PAYMENT_RULE_VALUES.map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {PAYMENT_RULE_LABELS[value]}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

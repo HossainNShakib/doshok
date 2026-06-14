@@ -7,14 +7,7 @@ import { OrderShipment } from "@/components/admin/order-shipment"
 import { AdminPageHeader, AdminSectionCard, AdminStatusBadge, AdminTableShell } from "@/components/admin/admin-ui"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getPhoneDisplayE164 } from "@/lib/utils"
-
-const PAYMENT_RULE_LABELS: Record<string, string> = {
-  cod_only: "Cash on Delivery Only",
-  full: "Full Payment",
-  partial_percent: "Partial (% of total)",
-  fixed_advance: "Fixed Advance (BDT)",
-  delivery_charge_only: "Delivery Charge Only",
-}
+import { getPaymentRuleLabel } from "@/lib/checkout/payment-rule.service"
 
 const PAYMENT_RULE_SOURCE_LABELS: Record<string, string> = {
   landing: "Landing Page",
@@ -243,7 +236,7 @@ export default async function AdminOrderDetailPage({
           <div className="rounded-lg bg-slate-50/60 p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Payment Rule</p>
             <p className="font-medium text-slate-700">
-              {order.paymentRule ? (PAYMENT_RULE_LABELS[order.paymentRule] ?? order.paymentRule) : "—"}
+              {order.paymentRule ? getPaymentRuleLabel(order.paymentRule) : "—"}
             </p>
           </div>
           <div className="rounded-lg bg-slate-50/60 p-3">

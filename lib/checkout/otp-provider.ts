@@ -29,6 +29,11 @@ export function getOtpProvider(): OtpProvider {
     case "mock":
       _provider = new MockOtpProvider()
       break
+    case "firebase":
+      // Firebase OTP is handled client-side via Firebase JS SDK.
+      // The server-side OTP provider is not used for Firebase mode.
+      _provider = new MockOtpProvider()
+      break
     // TODO: Add real SMS provider integration
     // case "sslwireless":
     // case "twilio":

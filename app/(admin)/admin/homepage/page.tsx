@@ -61,10 +61,16 @@ export default function AdminHomepagePage() {
       })
       .catch(() => {})
 
-    fetch("/api/products")
+    fetch("/api/products?selector=true&status=Active")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setProducts(d.data)
+        if (!d?.success) return
+        const list = Array.isArray(d.data)
+          ? d.data
+          : Array.isArray(d.data?.products)
+            ? d.data.products
+            : []
+        setProducts(list)
       })
       .catch(() => {})
   }, [])

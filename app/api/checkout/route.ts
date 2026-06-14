@@ -366,6 +366,10 @@ if (couponCode && discount > 0) {
         return createdOrder
     })
 
+    if (isV2 && paymentResult.payNow > 0 && paymentMethod.toLowerCase() === "cod") {
+      return error("This order requires advance payment. Please select an online payment method.")
+    }
+
     let paymentInitData: { paymentId?: string; paymentUrl?: string } | null = null
 
     const isOnlinePayment = ONLINE_PROVIDERS.includes(paymentMethod.toLowerCase())
@@ -404,6 +408,10 @@ if (couponCode && discount > 0) {
           }
         }
       }
+    }
+
+    if (isV2 && paymentResult.payNow > 0 && isOnlinePayment && !paymentInitData) {
+      return error("Payment gateway initialization failed. Please try again or contact support.")
     }
 
     sendOrderConfirmationEmail({

@@ -9,6 +9,12 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { AdminPageHeader, AdminSectionCard } from "@/components/admin/admin-ui"
 import { Info } from "lucide-react"
+import {
+  PAYMENT_RULE_LABELS,
+  PAYMENT_RULE_DESCRIPTIONS,
+  PAYMENT_RULE_VALUES,
+  type PaymentRuleType,
+} from "@/lib/checkout/payment-rule.service"
 
 type CheckoutSettings = {
   checkoutV2Enabled: boolean
@@ -23,13 +29,7 @@ type CheckoutSettings = {
   codReservationHours: number
 }
 
-const PAYMENT_RULES = [
-  { value: "cod_only", label: "Cash on Delivery Only", description: "No advance payment required." },
-  { value: "full", label: "Full Payment", description: "Customer must pay the full amount online." },
-  { value: "partial_percent", label: "Partial (% of total)", description: "Customer pays a percentage of the total online." },
-  { value: "fixed_advance", label: "Fixed Advance (BDT)", description: "Customer pays a fixed amount online." },
-  { value: "delivery_charge_only", label: "Delivery Charge Only", description: "Customer pays only the delivery fee online." },
-]
+const PAYMENT_RULE_OPTIONS: PaymentRuleType[] = [...PAYMENT_RULE_VALUES]
 
 export default function CheckoutSettingsPage() {
   const [settings, setSettings] = useState<CheckoutSettings | null>(null)
@@ -220,18 +220,22 @@ export default function CheckoutSettingsPage() {
                   value={settings.defaultPaymentRule}
                   onValueChange={(v) => { if (v) update("defaultPaymentRule", v) }}
                 >
-                  <SelectTrigger className="text-xs h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue>
+                      {(value: string | null) => value ? (PAYMENT_RULE_LABELS[value as PaymentRuleType] ?? value) : ""}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_RULES.map((rule) => (
-                      <SelectItem key={rule.value} value={rule.value} className="text-xs">
-                        {rule.label}
+                    {PAYMENT_RULE_OPTIONS.map((value) => (
+                      <SelectItem key={value} value={value} className="text-xs">
+                        {PAYMENT_RULE_LABELS[value]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-slate-400 flex items-center gap-1">
                   <Info className="h-3 w-3 shrink-0" />
-                  {PAYMENT_RULES.find((r) => r.value === settings.defaultPaymentRule)?.description}
+                  {PAYMENT_RULE_DESCRIPTIONS[settings.defaultPaymentRule as PaymentRuleType] ?? ""}
                 </p>
               </div>
               {needsValue && (
@@ -306,7 +310,7 @@ export default function CheckoutSettingsPage() {
               <div className="flex justify-between">
                 <span className="text-slate-400">Payment Rule</span>
                 <span className="text-right max-w-[120px] truncate text-slate-600">
-                  {PAYMENT_RULES.find((r) => r.value === settings.defaultPaymentRule)?.label || settings.defaultPaymentRule}
+                  {PAYMENT_RULE_LABELS[settings.defaultPaymentRule as PaymentRuleType] ?? settings.defaultPaymentRule}
                 </span>
               </div>
               {needsValue && (

@@ -26,8 +26,7 @@ type PaymentMethod = {
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  BKASH: "bKash", NAGAD: "Nagad", ROCKET: "Rocket", UPAY: "Upay",
-  SSLCOMMERZ: "SSLCommerz", AAMARPAY: "aamarPay", COD: "Cash on Delivery",
+  BKASH: "bKash", NAGAD: "Nagad", COD: "Cash on Delivery",
 }
 
 const PROVIDER_CREDENTIAL_FIELDS: Record<string, { key: string; label: string; type?: string }[]> = {
@@ -48,42 +47,10 @@ const PROVIDER_CREDENTIAL_FIELDS: Record<string, { key: string; label: string; t
     { key: "baseUrl", label: "Base URL" },
     { key: "callbackUrl", label: "Callback URL" },
   ],
-  ROCKET: [
-    { key: "merchantId", label: "Merchant ID" },
-    { key: "merchantNumber", label: "Merchant Number" },
-    { key: "secretKey", label: "Secret Key", type: "password" },
-    { key: "baseUrl", label: "Base URL" },
-    { key: "callbackUrl", label: "Callback URL" },
-  ],
-  UPAY: [
-    { key: "merchantId", label: "Merchant ID" },
-    { key: "merchantNumber", label: "Merchant Number" },
-    { key: "appKey", label: "App Key" },
-    { key: "appSecret", label: "App Secret", type: "password" },
-    { key: "baseUrl", label: "Base URL" },
-    { key: "callbackUrl", label: "Callback URL" },
-  ],
-  SSLCOMMERZ: [
-    { key: "storeId", label: "Store ID" },
-    { key: "storePassword", label: "Store Password", type: "password" },
-    { key: "baseUrl", label: "Base URL" },
-    { key: "successUrl", label: "Success URL" },
-    { key: "failUrl", label: "Fail URL" },
-    { key: "cancelUrl", label: "Cancel URL" },
-    { key: "ipnUrl", label: "IPN URL" },
-  ],
-  AAMARPAY: [
-    { key: "storeId", label: "Store ID" },
-    { key: "signatureKey", label: "Signature Key", type: "password" },
-    { key: "baseUrl", label: "Base URL" },
-    { key: "successUrl", label: "Success URL" },
-    { key: "failUrl", label: "Fail URL" },
-    { key: "cancelUrl", label: "Cancel URL" },
-  ],
   COD: [],
 }
 
-const PROVIDERS = ["BKASH", "NAGAD", "ROCKET", "UPAY", "SSLCOMMERZ", "AAMARPAY", "COD"]
+const PROVIDERS = ["BKASH", "NAGAD", "COD"]
 
 export default function AdminPaymentMethodsPage() {
   const [methods, setMethods] = useState<PaymentMethod[]>([])
